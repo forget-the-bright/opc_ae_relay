@@ -50,6 +50,11 @@ namespace opcLearn.config
         {
             return _config.AlarmRules;
         }
+
+        public static List<OPCServerConfig> GetOPCServers()
+        {
+            return _config.OPCServers;
+        }
     }
 
 

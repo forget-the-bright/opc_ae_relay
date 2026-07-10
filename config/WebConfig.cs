@@ -1,4 +1,4 @@
-﻿using Nancy;
+using Nancy;
 using Nancy.Conventions;
 using Nancy.Hosting.Self;
 using opcLearn.core;
@@ -66,23 +66,25 @@ namespace opcLearn.config
             {
                 // double num4 = 1.5 + _random.NextDouble() * (10.5 - 1.5);
                 // Log.Information($"OPC-AE- testtesttest - {num4}");
-                return Response.AsJson(new
+
+                var result = new Dictionary<string, object>();
+
+                for (int i = 0; i < OpcAeClientRun.oPCServerConfigs.Count; i++)
                 {
-                    opc1 = new
+                    var config = OpcAeClientRun.oPCServerConfigs[i];
+                    string ip = config.IP;
+                    string key = $"opc{i + 1}";
+
+                    result[key] = new
                     {
-                        ip = OpcAeClientRun.host1,
-                        progid = OpcAeClientRun.hostInfo.ContainsKey(OpcAeClientRun.host1) ? OpcAeClientRun.hostInfo[OpcAeClientRun.host1] : "",
-                        running = OpcAeClientRun.get_opcThreadRunning_1(),
-                        threadId = OpcAeClientRun.get_opcThreadRunning_2ID()
-                    },
-                    opc2 = new
-                    {
-                        ip = OpcAeClientRun.host2,
-                        progid = OpcAeClientRun.hostInfo.ContainsKey(OpcAeClientRun.host2) ? OpcAeClientRun.hostInfo[OpcAeClientRun.host2] : "",
-                        running = OpcAeClientRun.get_opcThreadRunning_2(),
-                        threadId = OpcAeClientRun.get_opcThreadRunning_1ID()
-                    }
-                });
+                        ip = ip,
+                        progid = OpcAeClientRun.hostInfo.ContainsKey(ip),
+                       // progid = config.ProgId,
+                        running = OpcAeClientRun.opcThreadsRunning.TryGetValue(ip, out var isRunning) && isRunning,
+                        threadId = OpcAeClientRun.opcThreads.TryGetValue(ip, out var thread) ? thread.ManagedThreadId : 0
+                    };
+                }
+                return Response.AsJson(result);
             });
 
         }

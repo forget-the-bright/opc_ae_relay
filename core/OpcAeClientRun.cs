@@ -1,5 +1,6 @@
 ﻿using Opc.UaFx.Client;
 using opcLearn.discoverServer;
+using opcLearn.config;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,15 @@ namespace opcLearn.core
 {
     public class OpcAeClientRun
     {
+        public static readonly List<OPCServerConfig> oPCServerConfigs = AppConfigLoader.GetOPCServers();
+
+        public static Dictionary<String, Thread> opcThreads = new Dictionary<string, Thread>();
+
+        public static Dictionary<String, Boolean> opcThreadsRunning = new Dictionary<string, Boolean>();
+
+        public static Dictionary<String, Object> opcLocks = new Dictionary<string, Object>();
+
+
         // OPC 线程
         private static Thread _opcThread_1;
         // 线程停止标志
@@ -58,10 +68,18 @@ namespace opcLearn.core
             Log.Information("   Yokogawa OPC UA AE 客户端 v1.0        ");
             Log.Information("==========================================");
             Log.Information("");
+
+
             try
             {
-                StartOrRestartOpcThread1();
-                StartOrRestartOpcThread2();
+                oPCServerConfigs.ForEach(config =>
+                {
+                    opcThreads[config.IP] = null;
+                    opcThreadsRunning[config.IP] = false;
+                    opcLocks[config.IP] = new object();
+
+                    StartOrRestartOpcThread(config.IP);
+                });
             }
             catch (Exception ex)
             {
@@ -81,22 +99,16 @@ namespace opcLearn.core
                 {
                     try
                     {
-                        // 线程不存在 OR 已死
-                        if (_opcThread_1 == null || !_opcThread_1.IsAlive)
+                        oPCServerConfigs.ForEach(config =>
                         {
-                            _opcThreadRunning_1 = false;
-                            Log.Warning("OPC 1 线程不存在或已死亡，准备重启...");
-                            StartOrRestartOpcThread1();
-                        }
-
-                        // 线程不存在 OR 已死
-                        if (_opcThread_2 == null || !_opcThread_2.IsAlive)
-                        {
-                            _opcThreadRunning_2 = false;
-                            Log.Warning("OPC 2 线程不存在或已死亡，准备重启...");
-                            StartOrRestartOpcThread2();
-                        }
-
+                            Thread _opcThread = opcThreads[config.IP];
+                            if (_opcThread == null || !_opcThread.IsAlive)
+                            {
+                                opcThreadsRunning[config.IP] = false;
+                                Log.Warning($"{config.Name} 线程不存在或已死亡，准备重启...");
+                                StartOrRestartOpcThread(config.IP);
+                            }
+                        });
                         Thread.Sleep(5000); // 5 秒检查一次
                     }
                     catch (Exception ex)
@@ -114,18 +126,18 @@ namespace opcLearn.core
             watchThread.Start();
         }
 
-
         /// <summary>
         /// 启动或重启 OPC 线程
         /// </summary>
-        private static void StartOrRestartOpcThread1()
+        private static void StartOrRestartOpcThread(string host)
         {
-            //"10.100.107.1"
-            string host = host1;
-            lock (_opcLock_1)
+            Object _opcLock = opcLocks[host];
+            Thread _opcThread = opcThreads[host];
+            //opcThreadsRunning[host];
+            lock (_opcLock)
             {
                 // 如果线程还活着，不重复启动
-                if (_opcThread_1 != null && _opcThread_1.IsAlive)
+                if (_opcThread != null && _opcThread.IsAlive)
                     return;
 
 
@@ -133,50 +145,17 @@ namespace opcLearn.core
 
                 //_opcThreadRunning_1 = true;
 
-                _opcThread_1 = new Thread(() => { OpcWork(host, ref _opcThreadRunning_1); });
-                _opcThread_1.Name = $"OPC-AE-[{host}]-Listener"; // 线程名，Serilog 会显示
-                _opcThread_1.IsBackground = true;
-                _opcThread_1.Start();
+                opcThreads[host] = new Thread(() => { OpcWork(host); });
+                opcThreads[host].Name = $"OPC-AE-[{host}]-Listener"; // 线程名，Serilog 会显示
+                opcThreads[host].IsBackground = true;
+                opcThreads[host].Start();
 
                 Log.Information($"OPC {host} 线程已启动");
             }
         }
 
 
-        private static void StartOrRestartOpcThread2()
-        {
-            //"10.100.107.1"
-            string host = host2;
-            lock (_opcLock_2)
-            {
-                // 如果线程还活着，不重复启动
-                if (_opcThread_2 != null && _opcThread_2.IsAlive)
-                    return;
-
-                Log.Information($"准备启动/重启 OPC {host} 监听线程...");
-
-                //_opcThreadRunning_2 = true;
-
-                _opcThread_2 = new Thread(() =>
-                {
-                    try
-                    {
-                        OpcWork(host,ref _opcThreadRunning_2);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, ex.Message);
-                    }
-                });
-                _opcThread_2.Name = $"OPC-AE-[{host}]-Listener"; // 线程名，Serilog 会显示
-                _opcThread_2.IsBackground = true;
-                _opcThread_2.Start();
-
-                Log.Information($"OPC {host} 线程已启动");
-            }
-        }
-
-        private static void OpcWork(string host, ref Boolean flag)
+        private static void OpcWork(string host)
         {
 
             var list = DiscoverServer.getAEServer(host, isPrint: false);
@@ -222,7 +201,7 @@ namespace opcLearn.core
                         Console.ReadKey();
                         return;
                     }
-                    flag = true;
+                    opcThreadsRunning[host] = true;
                     // 1. 浏览节点树
                     // Console.WriteLine();
                     // Console.WriteLine("========== 步骤1: 浏览 AE 节点树 ==========");
@@ -250,7 +229,7 @@ namespace opcLearn.core
                         {
                             if (aeClient.isConnected())
                             {
-                                flag = false;
+                                opcThreadsRunning[host] = false;
                                 Console.WriteLine(aeClient.clientState());
                                 break;
                             }

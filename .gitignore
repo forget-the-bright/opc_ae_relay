@@ -1,0 +1,128 @@
+# ======================================
+# .NET Framework 通用编译输出
+# ======================================
+[Dd]ebug/
+[Rr]elease/
+x64/Debug/
+x64/Release/
+x86/Debug/
+x86/Release/
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.mdb
+*.opendb
+*.vsp
+# 程序生成资源
+*.tlb
+*.tli
+*.tlh
+*.tmp_proj
+*_i.c
+*_p.c
+*_h.h
+
+# ======================================
+# Visual Studio 解决方案 & 项目缓存
+# ======================================
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sdf
+*.vcxproj.user
+*.vcxproj.filters
+*.vcxproj
+*.aps
+*.ncb
+*.log
+ipch/
+.vs/
+.vs/**/*
+vsdbg/
+# 局部调试配置
+launchSettings.json
+
+# ======================================
+# NuGet 包 & 缓存（.NET Framework 包文件夹）
+# ======================================
+packages/
+*.nupkg
+# nuget 本地缓存
+.nuget/
+
+# ======================================
+# 配置文件 & 本地环境（不提交本地数据库、密钥）
+# ======================================
+App.config
+Web.config
+*.config.local
+*.settings
+*.bak
+*.sql
+*.mdf
+*.ldf
+*.sdf
+*.accdb
+# 密钥、证书（OPC证书文件夹）
+CertificateStores/
+*.pfx
+*.pem
+*.der
+
+# ======================================
+# 日志、临时文件、输出
+# ======================================
+*.log
+*.txt
+*.tmp
+*.temp
+*.cache
+out/
+Output/
+Logs/
+log/
+temp/
+tmp/
+
+# ======================================
+# OPC UA SDK 相关临时/评估文件（适配你的Opc.UaFx项目）
+# ======================================
+*.opcwatch
+OpcWatchCache/
+# 导出NodeSet临时文件
+*.xml.tmp
+# 生成DataType临时代码
+GeneratedDataType.cs
+
+# ======================================
+# Windows 系统文件
+# ======================================
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ======================================
+# 测试、覆盖率文件
+# ======================================
+TestResults/
+coverage.xml
+*.trx
+*.coverage
+
+# ======================================
+# 其他IDE工具
+# ======================================
+# Rider
+.idea/
+*.DotSettings
+# Resharper
+_ReSharper*/
+*.ReSharper
+# Visual Assist
+*.va
+*.vap
+# CodeMaid
+*.code-maid

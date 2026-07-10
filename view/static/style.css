@@ -1,0 +1,144 @@
+﻿* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Microsoft YaHei", sans-serif;
+}
+
+body {
+    background: #f0f2f5;
+    color: #333;
+}
+
+/* 顶部标题 */
+.header {
+    background: #1890ff;
+    color: white;
+    padding: 16px 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+    .header h1 {
+        font-size: 24px;
+        font-weight: 500;
+    }
+
+/* 容器布局 */
+.container {
+    display: flex;
+    height: calc(100vh - 64px);
+}
+
+/* 左侧菜单 */
+.sidebar {
+    width: 240px;
+    background: white;
+    border-right: 1px solid #e8e8e8;
+    padding: 16px;
+}
+
+.menu-item {
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+}
+
+    .menu-item.active {
+        border-color: #1890ff;
+        background: #e6f7ff;
+    }
+
+    .menu-item h3 {
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+.status {
+    font-size: 14px;
+    color: #666;
+}
+
+    .status.online {
+        color: #52c41a;
+    }
+
+    .status.offline {
+        color: #ff4d4f;
+    }
+
+/* 右侧内容区 */
+.content {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.info-panel {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+    .info-panel h2 {
+        font-size: 20px;
+        margin-bottom: 16px;
+        color: #1890ff;
+    }
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+    .info-item label {
+        font-weight: 500;
+        color: #666;
+    }
+
+/* 日志面板 */
+.log-panel {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.log-container {
+    height: 400px;
+    overflow-y: auto;
+    background: #fafafa;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+}
+
+.log-item {
+    padding: 4px 0;
+    line-height: 1.5;
+}
+
+.log-info {
+    color: #1890ff;
+}
+
+.log-warn {
+    color: #faad14;
+}
+
+.log-error {
+    color: #ff4d4f;
+}

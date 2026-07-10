@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ApplicationConfig>
+
+	<!-- 数据库连接（可多个） -->
+	<Databases>
+		<Database name="Default"
+				  connectionString="Data Source=.;Initial Catalog=TestDB;User ID=sa;Password=123456;TrustServerCertificate=True"/>
+	</Databases>
+
+	<!-- MQ 配置 -->
+	<MQ>
+		<Host>127.0.0.1</Host>
+		<Port>5672</Port>
+		<User>admin</User>
+		<Password>123456</Password>
+		<QueueName>mes_data_queue</QueueName>
+	</MQ>
+
+	<!-- OPC 服务器（可多个） -->
+	<OPCServers>
+		<Server name="Yokogawa.Exaopc_1" progId="Yokogawa.ExaopcAECS1" ip="10.100.107.1" port="135"/>
+		<Server name="Yokogawa.Exaopc_2" progId="Yokogawa.ExaopcAECS1" ip="10.100.107.2" port="135"/>
+	</OPCServers>
+
+
+	<AlarmRules>
+		<!-- 10.1 报警状态缩略语 -->
+		<Rule Code="NR" Category="AlarmState" EventType="Alarm" Severity="1" Name="正常状态" Desc="正常运行状态"/>
+		<Rule Code="OOP" Category="AlarmState" EventType="Alarm" Severity="3" Name="输出开路报警" Desc="输出回路开路故障"/>
+		<Rule Code="IOP" Category="AlarmState" EventType="Alarm" Severity="3" Name="输入开路报警（超出上限值）" Desc="输入信号超出上限开路"/>
+		<Rule Code="IOP-" Category="AlarmState" EventType="Alarm" Severity="3" Name="输入开路报警（低于下限值）" Desc="输入信号低于下限开路"/>
+		<Rule Code="HH" Category="AlarmState" EventType="Alarm" Severity="3" Name="高高报警" Desc="测量值超过高高限"/>
+		<Rule Code="HI" Category="AlarmState" EventType="Alarm" Severity="2" Name="高报警" Desc="测量值超过高限"/>
+		<Rule Code="LO" Category="AlarmState" EventType="Alarm" Severity="2" Name="低报警" Desc="测量值低于低限"/>
+		<Rule Code="LL" Category="AlarmState" EventType="Alarm" Severity="3" Name="低低报警" Desc="测量值低于低低限"/>
+		<Rule Code="VEL+" Category="AlarmState" EventType="Alarm" Severity="2" Name="速率正向变化报警" Desc="测量值变化速率正向超限"/>
+		<Rule Code="VEL-" Category="AlarmState" EventType="Alarm" Severity="2" Name="速率负向变化报警" Desc="测量值变化速率负向超限"/>
+		<Rule Code="CNF" Category="AlarmState" EventType="Alarm" Severity="3" Name="连接错误报警" Desc="设备连接故障"/>
+		<Rule Code="CERR" Category="AlarmState" EventType="Alarm" Severity="3" Name="计算错误报警" Desc="数据计算异常"/>
+		<Rule Code="DV+" Category="AlarmState" EventType="Alarm" Severity="2" Name="偏差正向报警" Desc="测量值与设定值正向偏差超限"/>
+		<Rule Code="DV-" Category="AlarmState" EventType="Alarm" Severity="2" Name="偏差负向报警" Desc="测量值与设定值负向偏差超限"/>
+		<Rule Code="MHI" Category="AlarmState" EventType="Alarm" Severity="2" Name="输出高限报警" Desc="输出值被限制在高限"/>
+		<Rule Code="MLO" Category="AlarmState" EventType="Alarm" Severity="2" Name="输出低限报警" Desc="输出值被限制在低限"/>
+		<Rule Code="PERR" Category="AlarmState" EventType="Alarm" Severity="3" Name="回讯不一致报警" Desc="例如：高限位和低限位同时满足"/>
+		<Rule Code="ANS+" Category="AlarmState" EventType="Alarm" Severity="3" Name="正回讯错误" Desc="输出为“ON”，回讯不为“ON”"/>
+		<Rule Code="ANS-" Category="AlarmState" EventType="Alarm" Severity="3" Name="负回讯错误" Desc="输出为“OFF”，回讯不为“OFF”"/>
+
+		<!-- 10.2 数据状态缩略语 -->
+		<Rule Code="BAD" Category="DataState" EventType="Status" Severity="2" Name="坏值" Desc="数据质量为坏值"/>
+		<Rule Code="QST" Category="DataState" EventType="Status" Severity="2" Name="有问题值" Desc="数据质量异常"/>
+		<Rule Code="CLP+" Category="DataState" EventType="Status" Severity="1" Name="数据高钳位" Desc="输出被限制在高限值"/>
+		<Rule Code="CLP-" Category="DataState" EventType="Status" Severity="1" Name="数据低钳位" Desc="输出被限制在低限值"/>
+		<Rule Code="CAL" Category="DataState" EventType="Status" Severity="1" Name="调校状态" Desc="设备正在调校"/>
+
+		<!-- 10.3 模式状态缩略语 -->
+		<Rule Code="O/S" Category="ModeState" EventType="Mode" Severity="3" Name="失效" Desc="设备处于失效状态"/>
+		<Rule Code="IMAN" Category="ModeState" EventType="Mode" Severity="1" Name="初始化手动状态" Desc="手动模式初始化阶段"/>
+		<Rule Code="TRK" Category="ModeState" EventType="Mode" Severity="1" Name="跟踪状态" Desc="设备处于跟踪模式"/>
+		<Rule Code="MAN" Category="ModeState" EventType="Mode" Severity="1" Name="手动状态" Desc="设备处于手动控制模式"/>
+		<Rule Code="AUT" Category="ModeState" EventType="Mode" Severity="1" Name="自动状态" Desc="设备处于自动控制模式"/>
+		<Rule Code="CAS" Category="ModeState" EventType="Mode" Severity="1" Name="串级状态" Desc="设备处于串级控制模式"/>
+		<Rule Code="PRD" Category="ModeState" EventType="Mode" Severity="1" Name="直接输出状态" Desc="设备处于直接输出模式"/>
+	</AlarmRules>
+
+</ApplicationConfig>

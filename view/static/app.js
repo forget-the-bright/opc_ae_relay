@@ -17,7 +17,7 @@ function fetchLogs() {
         .then(res => res.json())
         .then(logs => {
             const logContainer = document.getElementById('log-container');
-            logContainer.innerHTML = ''; // 清空旧日志
+            //logContainer.innerHTML = ''; // 清空旧日志
             logs.forEach(line => {
                 const div = document.createElement('div');
                 div.className = 'log-item';

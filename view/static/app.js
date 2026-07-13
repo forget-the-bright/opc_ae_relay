@@ -24,6 +24,10 @@ function fetchLogs() {
                 div.textContent = line;
                 logContainer.appendChild(div);
             });
+            // 限制最多 100 条
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
             logContainer.scrollTop = logContainer.scrollHeight;
         });
 }

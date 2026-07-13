@@ -201,7 +201,7 @@ namespace opc_ae_relay.core
                         Console.WriteLine("等待报警...");
                         while (!ShuttingDown)
                         {
-                            if (aeClient.isConnected())
+                            if (aeClient.isConnected() || ShuttingDown)
                             {
                                 opcThreadsRunning[host] = false;
                                 Console.WriteLine(aeClient.clientState());
@@ -240,6 +240,7 @@ namespace opc_ae_relay.core
                     if (thread.IsAlive)
                     {
                         Log.Warning($"OPC 线程 {kvp.Key} 未能在 5 秒内退出");
+                        
                     }
                 }
             }

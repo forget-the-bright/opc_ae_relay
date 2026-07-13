@@ -103,7 +103,8 @@ namespace opc_ae_relay.core
                 // 如果线程还活着，不重复启动
                 if (_opcThread != null && _opcThread.IsAlive)
                     return;
-
+                if (ShuttingDown)
+                    return;
 
                 Log.Information($"准备启动/重启 OPC {host} 监听线程...");
 
@@ -119,6 +120,8 @@ namespace opc_ae_relay.core
 
         private static void OpcWork(string host, string ProgId)
         {
+            if (ShuttingDown)
+                return;
             restartCount[host] += 1;
             // 先判断 host 是否存在，且对应的值是否为 null
             if (!hostInfo.TryGetValue(host, out var uri) || uri == null)
@@ -173,7 +176,6 @@ namespace opc_ae_relay.core
                     // 连接
                     if (!aeClient.Connect())
                     {
-                        Console.ReadKey();
                         return;
                     }
 
@@ -205,7 +207,6 @@ namespace opc_ae_relay.core
                                 Console.WriteLine(aeClient.clientState());
                                 break;
                             }
-
                             Thread.Sleep(1000);
                         }
                     }

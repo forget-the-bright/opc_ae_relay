@@ -346,6 +346,7 @@
         <Content Include="application.xml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+        <Content Include="RunApp.md" />
         <Content Include="view\index.html">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>

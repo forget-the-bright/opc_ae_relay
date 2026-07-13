@@ -415,6 +415,8 @@ SELECT SCOPE_IDENTITY();";
                                 }
 
                                 if (OnEventReceived != null) OnEventReceived(alarmData);*/
+                if (OnAlarmReceived != null) OnAlarmReceived(alarmData);
+                if (OnEventReceived != null) OnEventReceived(alarmData);
             }
             catch (Exception ex)
             {

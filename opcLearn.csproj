@@ -368,4 +368,38 @@
     </Target>
     <Import Project="packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets" Condition="Exists('packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets')"/>
     <Import Project="packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')"/>
+
+    <Target Name="MoveLibsToSubFolder" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+        <MakeDir Directories="$(TargetDir)lib"/>
+
+        <!-- 1. 移动所有依赖 DLL -->
+        <ItemGroup>
+            <DllFiles Include="$(TargetDir)*.dll" Exclude="$(TargetDir)$(TargetFileName)"/>
+        </ItemGroup>
+        <Move SourceFiles="@(DllFiles)" DestinationFolder="$(TargetDir)lib" ContinueOnError="true"/>
+
+        <!-- 2. 移动 XML 文档（排除 application.xml） -->
+        <ItemGroup>
+            <XmlFiles Include="$(TargetDir)*.xml" Exclude="$(TargetDir)application.xml"/>
+        </ItemGroup>
+        <Move SourceFiles="@(XmlFiles)" DestinationFolder="$(TargetDir)lib" ContinueOnError="true"/>
+
+        <!-- 3. 移动 PDB 文件 -->
+        <ItemGroup>
+            <PdbFiles Include="$(TargetDir)Microsoft.Data.SqlClient.SNI.*.pdb"/>
+            <PdbFiles Include="$(TargetDir)$(TargetName).pdb"/>
+        </ItemGroup>
+        <Move SourceFiles="@(PdbFiles)" DestinationFolder="$(TargetDir)lib" ContinueOnError="true"/>
+
+        <!-- 4. 移动 SqlClient 多语言资源文件夹 -->
+        <ItemGroup>
+            <SatelliteFolders Include="cs;de;es;fr;it;ja;ko;pl;pt-BR;ru;tr;zh-Hans;zh-Hant"/>
+        </ItemGroup>
+        <Exec Command="xcopy /s /y /q &quot;$(TargetDir)%(SatelliteFolders.Identity)\&quot; &quot;$(TargetDir)lib\%(SatelliteFolders.Identity)\&quot;" ContinueOnError="true"
+              Condition="Exists('$(TargetDir)%(SatelliteFolders.Identity)')"/>
+        <RemoveDir Directories="@(SatelliteFolders->'$(TargetDir)%(Identity)')" ContinueOnError="true"/>
+
+        <Message Text="Release 输出整理完成：DLL / XML / PDB / 资源文件 → lib/" Importance="high"/>
+    </Target>
+
 </Project>

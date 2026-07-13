@@ -27,7 +27,7 @@ namespace opcLearn.config
 
                 // 文件输出：按天切片 + 保留30天
                 .WriteTo.File(
-                    "../logs/log-.log", // 日志目录+文件名前缀
+                    "./logs/log-.log", // 日志目录+文件名前缀
                     rollingInterval: RollingInterval.Day, // 按天切片
                     retainedFileCountLimit: null, // 不按数量限制
                     retainedFileTimeLimit: TimeSpan.FromDays(30), // 只保留30天
@@ -49,7 +49,6 @@ namespace opcLearn.config
     {
         public void Emit(LogEvent logEvent)
         {
-            string level;
             var log = logEvent.RenderMessage();
             if (log.Contains("OPC-AE-"))
             {

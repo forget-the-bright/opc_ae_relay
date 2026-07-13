@@ -1,21 +1,16 @@
-﻿using GodSharp.Opc.Da;
-using Microsoft.Extensions.Hosting;
-using Nancy.Hosting.Self;
-using Opc.UaFx;
-using Opc.UaFx.Client;
+﻿using System;
+using System.Threading;
 using opcLearn.config;
 using opcLearn.core;
 using opcLearn.discoverServer;
 using opcLearn.util;
 using Serilog;
-using System;
-using System.Threading;
 
 namespace YokogawaAE
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             try
             {
@@ -34,7 +29,7 @@ namespace YokogawaAE
 
         public static void testInsert()
         {
-            int id = DBUtil.Execute($@"INSERT INTO [dbo].[AlarmEvent] (
+            var id = DBUtil.Execute(@"INSERT INTO [dbo].[AlarmEvent] (
     EventId,
     EventType,
     EventTypeId,
@@ -72,14 +67,12 @@ VALUES (
     'Alarm',
     '测量值超过高高限'
 );");
-
         }
 
 
         public static void runAeClientServer()
         {
-
-            var list = DiscoverServer.getAEServer("10.100.107.1", isPrint: false);
+            var list = DiscoverServer.getAEServer(isPrint:false);
             //AeServerSelectTest.TestAeServerSelect();
             Log.Information("==========================================");
             Log.Information("   Yokogawa OPC UA AE 客户端 v1.0        ");
@@ -89,12 +82,9 @@ VALUES (
             //A&E 1.10；支持系统/过程/操作等8类事件
             var server = list[2];
             Log.Information($@"Name={server.Name}, ClassId={server.ClassId}, ProgId={server.ProgId}, Uri={server.Uri}");
-            using (var aeClient = new YokogawaAEClient(serverUrl: server.Uri))
+            using (var aeClient = new YokogawaAEClient(server.Uri))
             {
-                aeClient.OnLog += message =>
-                {
-                    Log.Information(message);
-                };
+                aeClient.OnLog += message => { Log.Information(message); };
                 // 注册报警事件处理器
                 aeClient.OnAlarmReceived += alarm =>
                 {
@@ -130,10 +120,7 @@ VALUES (
                 Console.WriteLine("========== 步骤2: 报警源列表 ==========");
                 Console.WriteLine();
                 var sources = aeClient.GetAlarmSources();
-                foreach (var s in sources)
-                {
-                    Console.WriteLine("  * " + s.DisplayName + " (" + s.NodeId + ")");
-                }
+                foreach (var s in sources) Console.WriteLine("  * " + s.DisplayName + " (" + s.NodeId + ")");
 
                 // 3. 订阅报警
                 Console.WriteLine();

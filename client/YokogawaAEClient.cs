@@ -1,115 +1,113 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 using Opc.UaFx;
 using Opc.UaFx.Client;
 using opcLearn.config;
 using opcLearn.util;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace YokogawaAE
 {
-
     /// <summary>
-    /// OPC AE 报警事件实体（对应数据库表 AlarmEvent）
+    ///     OPC AE 报警事件实体（对应数据库表 AlarmEvent）
     /// </summary>
     public class AlarmEventData
     {
         /// <summary>
-        /// 自增主键ID
+        ///     自增主键ID
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// OPC事件唯一ID
+        ///     OPC事件唯一ID
         /// </summary>
         public string EventId { get; set; }
 
         /// <summary>
-        /// 事件类型名称
+        ///     事件类型名称
         /// </summary>
         public string EventType { get; set; }
 
         /// <summary>
-        /// 事件类型节点ID
+        ///     事件类型节点ID
         /// </summary>
         public string EventTypeId { get; set; }
 
         /// <summary>
-        /// 事件源名称（点位/标签名）
+        ///     事件源名称（点位/标签名）
         /// </summary>
         public string SourceName { get; set; }
 
         /// <summary>
-        /// 事件源节点ID
+        ///     事件源节点ID
         /// </summary>
         public string SourceNodeId { get; set; }
 
         /// <summary>
-        /// 事件节点ID
+        ///     事件节点ID
         /// </summary>
         public string NodeId { get; set; }
 
         /// <summary>
-        /// 报警消息
+        ///     报警消息
         /// </summary>
         public string Message { get; set; }
 
         /// <summary>
-        /// 报警级别（1低、2中、3高）
+        ///     报警级别（1低、2中、3高）
         /// </summary>
         public int Severity { get; set; }
 
         /// <summary>
-        /// 事件发生时间（OPC服务器时间）
+        ///     事件发生时间（OPC服务器时间）
         /// </summary>
         public DateTime Time { get; set; }
 
         /// <summary>
-        /// 客户端接收时间
+        ///     客户端接收时间
         /// </summary>
         public DateTime ReceiveTime { get; set; }
 
         /// <summary>
-        /// 来源OPC服务器IP
+        ///     来源OPC服务器IP
         /// </summary>
         public string Host { get; set; }
 
         /// <summary>
-        /// 报警是否激活（当前未赋值，可为null）
+        ///     报警是否激活（当前未赋值，可为null）
         /// </summary>
         public bool? IsActive { get; set; }
 
         /// <summary>
-        /// 是否已确认（当前未赋值，可为null）
+        ///     是否已确认（当前未赋值，可为null）
         /// </summary>
         public bool? IsAcked { get; set; }
 
         /// <summary>
-        /// 条件名称（如HH、LO等，当前未赋值，可为null）
+        ///     条件名称（如HH、LO等，当前未赋值，可为null）
         /// </summary>
         public string ConditionName { get; set; }
 
         // ====================== 你新增的匹配规则字段 ======================
 
         /// <summary>
-        /// 匹配到的报警规则名称（来自application.xml的AlarmRules.Name）
+        ///     匹配到的报警规则名称（来自application.xml的AlarmRules.Name）
         /// </summary>
         public string MatchedRuleName { get; set; }
 
         /// <summary>
-        /// 匹配到的规则事件类型（来自AlarmRules.EventType：Alarm/Status/Mode）
+        ///     匹配到的规则事件类型（来自AlarmRules.EventType：Alarm/Status/Mode）
         /// </summary>
         public string MatchedRuleEventType { get; set; }
 
         /// <summary>
-        /// 匹配到的规则描述（来自AlarmRules.Desc）
+        ///     匹配到的规则描述（来自AlarmRules.Desc）
         /// </summary>
         public string MatchedRuleDescription { get; set; }
+
         public override string ToString()
         {
             return string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}] {2}: {3} (类型:{4}, 激活:{5}, 确认:{6})",
@@ -139,22 +137,15 @@ SELECT SCOPE_IDENTITY();";
     }
 
     /// <summary>
-    /// Yokogawa OPC UA AE 客户端
+    ///     Yokogawa OPC UA AE 客户端
     /// </summary>
     public class YokogawaAEClient : IDisposable
     {
-        private readonly OpcClient _client;
-        private readonly string _serverUrl;
-        private readonly string _host;
         private readonly OpcNodeId _aeNodeId;
-        private bool _isConnected;
+        private readonly OpcClient _client;
+        private readonly string _host;
+        private readonly string _serverUrl;
         private object _eventSubscription;
-
-        public event Action<AlarmEventData> OnAlarmReceived;
-        public event Action<AlarmEventData> OnEventReceived;
-        public event Action<string> OnLog;
-
-        public bool IsConnected { get { return _isConnected; } }
 
         public YokogawaAEClient(string serverUrl = "opc.tcp://10.100.107.1:4840/", string host = "")
         {
@@ -162,8 +153,20 @@ SELECT SCOPE_IDENTITY();";
             _client = new OpcClient(_serverUrl);
             _host = host;
             _aeNodeId = OpcObjectTypes.Server;
-            _isConnected = false;
+            IsConnected = false;
         }
+
+        public bool IsConnected { get; private set; }
+
+        public void Dispose()
+        {
+            Disconnect();
+            _client?.Dispose();
+        }
+
+        public event Action<AlarmEventData> OnAlarmReceived;
+        public event Action<AlarmEventData> OnEventReceived;
+        public event Action<string> OnLog;
 
         // ==================== 连接管理 ====================
 
@@ -173,7 +176,7 @@ SELECT SCOPE_IDENTITY();";
             {
                 Log("正在连接服务器...");
                 _client.Connect();
-                _isConnected = true;
+                IsConnected = true;
                 Log("连接成功！");
                 return true;
             }
@@ -186,15 +189,12 @@ SELECT SCOPE_IDENTITY();";
 
         public void Disconnect()
         {
-            if (_isConnected)
+            if (IsConnected)
             {
-                if (_eventSubscription is IDisposable)
-                {
-                    ((IDisposable)_eventSubscription).Dispose();
-                }
+                if (_eventSubscription is IDisposable) ((IDisposable)_eventSubscription).Dispose();
                 _eventSubscription = null;
                 _client.Disconnect();
-                _isConnected = false;
+                IsConnected = false;
                 Log("已断开连接");
             }
         }
@@ -202,7 +202,7 @@ SELECT SCOPE_IDENTITY();";
         // ==================== 节点浏览 ====================
 
         /// <summary>
-        /// 获取 AE 节点的树状结构字符串
+        ///     获取 AE 节点的树状结构字符串
         /// </summary>
         public string GetAENodeTree()
         {
@@ -226,7 +226,7 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 获取所有报警源节点
+        ///     获取所有报警源节点
         /// </summary>
         public List<OpcNodeInfo> GetAlarmSources()
         {
@@ -248,7 +248,7 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 获取所有报警条件节点
+        ///     获取所有报警条件节点
         /// </summary>
         public List<OpcNodeInfo> GetAlarmConditions()
         {
@@ -273,6 +273,7 @@ SELECT SCOPE_IDENTITY();";
         {
             return _client.State == OpcClientState.Disconnected || _client.State == OpcClientState.Disconnecting;
         }
+
         public OpcClientState clientState()
         {
             return _client.State;
@@ -280,7 +281,7 @@ SELECT SCOPE_IDENTITY();";
         // ==================== 报警订阅 ====================
 
         /// <summary>
-        /// 订阅 AE 节点的报警和事件
+        ///     订阅 AE 节点的报警和事件
         /// </summary>
         public bool SubscribeAlarms()
         {
@@ -288,10 +289,7 @@ SELECT SCOPE_IDENTITY();";
 
             try
             {
-                if (_eventSubscription is IDisposable)
-                {
-                    ((IDisposable)_eventSubscription).Dispose();
-                }
+                if (_eventSubscription is IDisposable) ((IDisposable)_eventSubscription).Dispose();
 
                 _eventSubscription = _client.SubscribeEvent(
                     _aeNodeId,
@@ -309,7 +307,7 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 读取指定节点的当前值
+        ///     读取指定节点的当前值
         /// </summary>
         public object ReadNodeValue(string nodeId)
         {
@@ -330,11 +328,12 @@ SELECT SCOPE_IDENTITY();";
 
         private bool EnsureConnected()
         {
-            if (!_isConnected)
+            if (!IsConnected)
             {
                 Log("未连接，请先调用 Connect()");
                 return false;
             }
+
             return true;
         }
 
@@ -362,13 +361,13 @@ SELECT SCOPE_IDENTITY();";
                     SourceNodeId = opcEvent.SourceNodeId != null ? opcEvent.SourceNodeId.ToString() : "N/A",
                     NodeId = opcEvent.NodeId != null ? opcEvent.NodeId.ToString() : "N/A",
                     Message = opcEvent.Message != null ? opcEvent.Message.ToString() : "",
-                    Severity = (int)(opcEvent.Severity),
+                    Severity = (int)opcEvent.Severity,
                     Time = opcEvent.Time,
                     ReceiveTime = opcEvent.ReceiveTime,
                     Host = _host
                 };
 
-                AlarmInfo alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
+                var alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
                 alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";
                 alarmData.MatchedRuleEventType = alarmInfo.MatchedRule?.EventType ?? "";
                 alarmData.MatchedRuleDescription = alarmInfo.MatchedRule?.Description ?? "";
@@ -377,25 +376,24 @@ SELECT SCOPE_IDENTITY();";
                 var alarm = e.Event as OpcAlarmCondition;
                 //这里有问题不是OpcAlarmCondition 也能转换，且永不为null
                 if (alarm != null)
-                {
                     if (alarm.IsActive)
                     {
                         Console.Write($"Alarm {alarm.ConditionName} is {alarmData.SourceName} ");
                         Console.WriteLine($"{(alarm.IsActive ? "active" : "inactive")}!");
                     }
-                }
+
                 var idObject = DBUtil.ExecuteScalar(AlarmEventData.getInsertSql(), alarmData);
 
                 Log(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}] - [{7}]]",
-                       _host,
-                      opcEvent.EventType,
-                      alarmData.SourceName,
-                      alarmData.Message,
-                      alarmInfo.MatchedRule?.Name ?? "",
-                      alarmInfo.MatchedRule?.EventType ?? "",
-                      alarmInfo.MatchedRule?.Description ?? "",
-                      idObject
-                  ));
+                    _host,
+                    opcEvent.EventType,
+                    alarmData.SourceName,
+                    alarmData.Message,
+                    alarmInfo.MatchedRule?.Name ?? "",
+                    alarmInfo.MatchedRule?.EventType ?? "",
+                    alarmInfo.MatchedRule?.Description ?? "",
+                    idObject
+                ));
 
 
                 // 用下面的判断
@@ -440,24 +438,24 @@ SELECT SCOPE_IDENTITY();";
 
         private void BuildTreeString(OpcNodeInfo node, string prefix, StringBuilder sb, HashSet<string> visited)
         {
-            string nodeKey = node.NodeId.ToString();
+            var nodeKey = node.NodeId.ToString();
             if (visited.Contains(nodeKey)) return;
             visited.Add(nodeKey);
 
             // 节点图标（兼容 .NET Framework 4.7.2）
-            string icon = GetNodeIcon(node.Category);
+            var icon = GetNodeIcon(node.Category);
 
             sb.AppendLine(prefix + icon + " " + node.DisplayName + " [" + node.Category + "]");
 
             try
             {
                 var children = node.Children().ToList();
-                for (int i = 0; i < children.Count; i++)
+                for (var i = 0; i < children.Count; i++)
                 {
                     var child = children[i];
-                    bool isLast = (i == children.Count - 1);
-                    string newPrefix = prefix + (isLast ? "  └─ " : "  ├─ ");
-                    string childPrefix = prefix + (isLast ? "     " : "  │  ");
+                    var isLast = i == children.Count - 1;
+                    var newPrefix = prefix + (isLast ? "  └─ " : "  ├─ ");
+                    var childPrefix = prefix + (isLast ? "     " : "  │  ");
 
                     if (child.Category == OpcNodeCategory.Object)
                     {
@@ -465,14 +463,17 @@ SELECT SCOPE_IDENTITY();";
                     }
                     else if (child.Category == OpcNodeCategory.Variable)
                     {
-                        sb.AppendLine(newPrefix + GetNodeIcon(child.Category) + " " + child.DisplayName + " [" + child.Category + "]");
+                        sb.AppendLine(newPrefix + GetNodeIcon(child.Category) + " " + child.DisplayName + " [" +
+                                      child.Category + "]");
                         try
                         {
                             var value = child.AttributeValue(OpcAttribute.Value);
                             if (value != null)
-                                sb.AppendLine(childPrefix + "  值: " + value.ToString());
+                                sb.AppendLine(childPrefix + "  值: " + value);
                         }
-                        catch { }
+                        catch
+                        {
+                        }
                     }
                     else
                     {
@@ -487,23 +488,22 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 根据节点类型返回图标字符
+        ///     根据节点类型返回图标字符
         /// </summary>
         private string GetNodeIcon(OpcNodeCategory category)
         {
             if (category == OpcNodeCategory.Object)
                 return "[O]";
-            else if (category == OpcNodeCategory.Variable)
+            if (category == OpcNodeCategory.Variable)
                 return "[V]";
-            else if (category == OpcNodeCategory.Method)
+            if (category == OpcNodeCategory.Method)
                 return "[M]";
-            else
-                return "[ ]";
+            return "[ ]";
         }
 
         private void CollectAlarmSources(OpcNodeInfo node, List<OpcNodeInfo> sources, HashSet<string> visited)
         {
-            string key = node.NodeId.ToString();
+            var key = node.NodeId.ToString();
             if (visited.Contains(key)) return;
             visited.Add(key);
 
@@ -511,38 +511,32 @@ SELECT SCOPE_IDENTITY();";
             {
                 var notifiers = node.Children(OpcReferenceType.HasNotifier);
                 foreach (var n in notifiers)
-                {
                     if (!sources.Any(s => s.NodeId == n.NodeId))
                     {
                         sources.Add(n);
                         CollectAlarmSources(n, sources, visited);
                     }
-                }
 
                 var eventSources = node.Children(OpcReferenceType.HasEventSource);
                 foreach (var es in eventSources)
-                {
                     if (!sources.Any(s => s.NodeId == es.NodeId))
                     {
                         sources.Add(es);
                         CollectAlarmSources(es, sources, visited);
                     }
-                }
 
                 foreach (var child in node.Children())
-                {
                     if (child.Category == OpcNodeCategory.Object)
-                    {
                         CollectAlarmSources(child, sources, visited);
-                    }
-                }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         private void CollectConditions(OpcNodeInfo node, List<OpcNodeInfo> conditions, HashSet<string> visited)
         {
-            string key = node.NodeId.ToString();
+            var key = node.NodeId.ToString();
             if (visited.Contains(key)) return;
             visited.Add(key);
 
@@ -550,36 +544,23 @@ SELECT SCOPE_IDENTITY();";
             {
                 var hasConditions = node.Children(OpcReferenceType.HasCondition);
                 foreach (var c in hasConditions)
-                {
                     if (!conditions.Any(x => x.NodeId == c.NodeId))
-                    {
                         conditions.Add(c);
-                    }
-                }
 
                 foreach (var child in node.Children())
-                {
                     if (child.Category == OpcNodeCategory.Object)
-                    {
                         CollectConditions(child, conditions, visited);
-                    }
-                }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         private void Log(string message)
         {
-
             var logMessage = string.Format("[{0:HH:mm:ss.fff}] {1}", DateTime.Now, message);
             //Console.WriteLine(logMessage);
             if (OnLog != null) OnLog(message);
-        }
-
-        public void Dispose()
-        {
-            Disconnect();
-            _client?.Dispose();
         }
     }
 
@@ -588,14 +569,19 @@ SELECT SCOPE_IDENTITY();";
     {
         /// 标签名称 WI-11301
         public string TagName { get; set; } = string.Empty;
+
         /// 中文/设备描述
         public string Description { get; set; } = string.Empty;
+
         /// 字段类型 PV/SP/OP/MV/IN
         public string FieldType { get; set; } = string.Empty;
+
         /// 等号后数值/状态文本，无=则空
         public string Value { get; set; } = string.Empty;
+
         /// 单位
         public string Unit { get; set; } = string.Empty;
+
         /// 末尾全部后缀完整保留
         public string Suffix { get; set; } = string.Empty;
 
@@ -604,29 +590,27 @@ SELECT SCOPE_IDENTITY();";
         /// 全局匹配解析方法
         public static AlarmInfo ParseAlarm(string input, string eventTypeId)
         {
-            AlarmInfo result = new AlarmInfo();
-            string raw = input.Trim();
+            var result = new AlarmInfo();
+            var raw = input.Trim();
 
             var alarmRule = AlarmConfigLoader.Match(raw);
-            if (alarmRule != null)
-            {
-                result.MatchedRule = alarmRule;
-            }
+            if (alarmRule != null) result.MatchedRule = alarmRule;
             // 分支1：包含 = 号（数值/状态格式）
             if (raw.Contains("="))
-            {   // 修复正则：等号后(.+?)包含值+单位，两个以上空格才分割后缀
-                string regEqual = @"^(\S+)\s+(.+?)\s+(\w+)\s*=\s*(.+?)(?=\s{2,}.*)?(\s{2}.*)?$";
-                Match match = Regex.Match(raw, regEqual, RegexOptions.Singleline);
+            {
+                // 修复正则：等号后(.+?)包含值+单位，两个以上空格才分割后缀
+                var regEqual = @"^(\S+)\s+(.+?)\s+(\w+)\s*=\s*(.+?)(?=\s{2,}.*)?(\s{2}.*)?$";
+                var match = Regex.Match(raw, regEqual, RegexOptions.Singleline);
                 if (match.Success)
                 {
                     result.TagName = match.Groups[1].Value.Trim();
                     result.Description = match.Groups[2].Value.Trim();
                     result.FieldType = match.Groups[3].Value.Trim();
-                    string valRaw = match.Groups[4].Value.Trim();
+                    var valRaw = match.Groups[4].Value.Trim();
                     result.Suffix = match.Groups[5].Value?.Trim() ?? "";
 
                     // 拆分 valRaw 提取数值、单位
-                    string[] valParts = valRaw.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var valParts = valRaw.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     if (valParts.Length >= 1 && double.TryParse(valParts[0], out _))
                     {
                         result.Value = valParts[0];
@@ -639,14 +623,15 @@ SELECT SCOPE_IDENTITY();";
                         result.Value = valRaw;
                         result.Unit = "";
                     }
+
                     return result;
                 }
             }
 
             // 分支2：无= 纯设备告警，修复正则贪婪匹配，解决带符号描述匹配失败
             // ^(\S+) 标签，\s+(.+)整段描述，最后\s+(\w+)固定英文字段，剩余全部后缀
-            string regNoEqual = @"^(\S+)\s+(.+)\s+(\w+)(\s+.*)?$";
-            Match matchNoEq = Regex.Match(raw, regNoEqual, RegexOptions.Singleline);
+            var regNoEqual = @"^(\S+)\s+(.+)\s+(\w+)(\s+.*)?$";
+            var matchNoEq = Regex.Match(raw, regNoEqual, RegexOptions.Singleline);
             if (matchNoEq.Success)
             {
                 result.TagName = matchNoEq.Groups[1].Value.Trim();
@@ -667,8 +652,8 @@ SELECT SCOPE_IDENTITY();";
     public static class OpcEventDataStoreHelper
     {
         /// <summary>
-        /// 实时反射获取 OpcEvent 的 protected internal DataStore
-        /// 无静态构造，不会触发类型初始化异常
+        ///     实时反射获取 OpcEvent 的 protected internal DataStore
+        ///     无静态构造，不会触发类型初始化异常
         /// </summary>
         /// <param name="evt">OPC事件对象</param>
         /// <returns>底层IOpcReadOnlyNodeDataStore，失败返回null</returns>
@@ -680,7 +665,7 @@ SELECT SCOPE_IDENTITY();";
             try
             {
                 // 反射查找 DataStore 属性，字符串规避nameof权限报错
-                PropertyInfo dataStoreProp = typeof(OpcEvent)
+                var dataStoreProp = typeof(OpcEvent)
                     .GetProperty(
                         "DataStore",
                         BindingFlags.Instance | BindingFlags.NonPublic
@@ -690,7 +675,7 @@ SELECT SCOPE_IDENTITY();";
                     return null;
 
                 // 取值转换接口
-                object rawValue = dataStoreProp.GetValue(evt);
+                var rawValue = dataStoreProp.GetValue(evt);
                 return rawValue as IOpcReadOnlyNodeDataStore;
             }
             catch (Exception)
@@ -701,18 +686,18 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 通过DataStore读取指定字段值
+        ///     通过DataStore读取指定字段值
         /// </summary>
         public static T GetDataStoreField<T>(this OpcEvent evt, string fieldName)
         {
-            IOpcReadOnlyNodeDataStore store = evt.TryGetDataStore();
+            var store = evt.TryGetDataStore();
             if (store == null)
                 return default;
 
             try
             {
                 // 查找IOpcReadOnlyNodeDataStore的Get<T>(string)泛型方法
-                MethodInfo getMethod = store.GetType()
+                var getMethod = store.GetType()
                     .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                     .FirstOrDefault(m =>
                         m.IsGenericMethodDefinition
@@ -724,8 +709,8 @@ SELECT SCOPE_IDENTITY();";
                     return default;
 
                 // 构造泛型方法调用
-                MethodInfo genericGet = getMethod.MakeGenericMethod(typeof(T));
-                object result = genericGet.Invoke(store, new object[] { fieldName });
+                var genericGet = getMethod.MakeGenericMethod(typeof(T));
+                var result = genericGet.Invoke(store, new object[] { fieldName });
                 return result == null ? default : (T)result;
             }
             catch
@@ -735,11 +720,11 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// 获取DataStore内所有原始值数组（无字段名，仅调试）
+        ///     获取DataStore内所有原始值数组（无字段名，仅调试）
         /// </summary>
         public static object[] GetAllDataStoreValues(this OpcEvent evt)
         {
-            IOpcReadOnlyNodeDataStore store = evt.TryGetDataStore();
+            var store = evt.TryGetDataStore();
             if (store == null)
                 return Array.Empty<object>();
 
@@ -754,24 +739,25 @@ SELECT SCOPE_IDENTITY();";
         }
 
         /// <summary>
-        /// object[] 转为 [[0],[1],[2]] 格式字符串
+        ///     object[] 转为 [[0],[1],[2]] 格式字符串
         /// </summary>
         public static string FormatObjectArray(object[] arr)
         {
             if (arr == null || arr.Length == 0)
                 return "[]";
 
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             sb.Append('[');
-            for (int i = 0; i < arr.Length; i++)
+            for (var i = 0; i < arr.Length; i++)
             {
                 var val = arr[i];
-                string strVal = val == null ? "" : val.ToString();
+                var strVal = val == null ? "" : val.ToString();
                 sb.Append($"[{strVal}]");
                 // 非最后一个元素加逗号分隔
                 if (i != arr.Length - 1)
                     sb.Append(',');
             }
+
             sb.Append(']');
             return sb.ToString();
         }

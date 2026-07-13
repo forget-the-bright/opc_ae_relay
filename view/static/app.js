@@ -31,6 +31,7 @@ function fetchLogs() {
             logContainer.scrollTop = logContainer.scrollHeight;
         });
 }
+
 setInterval(fetchLogs, 500);
 fetchLogs();
 

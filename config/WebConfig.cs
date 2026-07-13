@@ -1,26 +1,19 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Nancy;
 using Nancy.Conventions;
 using Nancy.Hosting.Self;
 using opcLearn.core;
-using Serilog;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using YokogawaAE;
 
 namespace opcLearn.config
 {
-
-
     // 页面路由
     public class HomeModule : NancyModule
     {
         // 1. 声明随机数生成器（建议全局只实例化一次）
         private static readonly Random _random = new Random();
+
         public HomeModule()
         {
             // 首页：渲染模板 Views/index.html
@@ -31,11 +24,11 @@ namespace opcLearn.config
                     {
                         Index = idx + 1,
                         Key = $"opc{idx + 1}",
-                        Name = cfg.Name,
-                        IP = cfg.IP,
-                        ProgId = cfg.ProgId,
-                        ActiveClass = idx == 0 ? "active" : "",  // 预计算
-                        DisplayStyle = idx == 0 ? "block" : "none"  // 预计算
+                        cfg.Name,
+                        cfg.IP,
+                        cfg.ProgId,
+                        ActiveClass = idx == 0 ? "active" : "", // 预计算
+                        DisplayStyle = idx == 0 ? "block" : "none" // 预计算
                     })
                     .ToList();
 
@@ -48,24 +41,14 @@ namespace opcLearn.config
 
 
             // API
-            Get("/api/hello", _ =>
-            {
-                return Response.AsJson(new { msg = "Hello API" });
-            });
+            Get("/api/hello", _ => { return Response.AsJson(new { msg = "Hello API" }); });
 
             Get("/api/logs", _ =>
             {
                 var list = new List<string>();
-                while (LogBuffer.Queue.TryDequeue(out string line))
-                {
-                    list.Add(line);
-                }
+                while (LogBuffer.Queue.TryDequeue(out var line)) list.Add(line);
                 return Response.AsJson(list);
             });
-
-
-
-
 
 
             Get("/api/status", _ =>
@@ -75,26 +58,29 @@ namespace opcLearn.config
 
                 var result = new Dictionary<string, object>();
 
-                for (int i = 0; i < OpcAeClientRun.oPCServerConfigs.Count; i++)
+                for (var i = 0; i < OpcAeClientRun.oPCServerConfigs.Count; i++)
                 {
                     var config = OpcAeClientRun.oPCServerConfigs[i];
-                    string ip = config.IP;
-                    string key = $"opc{i + 1}";
+                    var ip = config.IP;
+                    var key = $"opc{i + 1}";
 
                     result[key] = new
                     {
-                        ip = ip,
+                        ip,
                         progid = OpcAeClientRun.hostInfo.ContainsKey(ip) ? OpcAeClientRun.hostInfo[ip] : config.ProgId,
                         // progid = config.ProgId,
                         running = OpcAeClientRun.opcThreadsRunning.TryGetValue(ip, out var isRunning) && isRunning,
-                        threadId = OpcAeClientRun.opcThreads.TryGetValue(ip, out var thread) ? thread.ManagedThreadId : 0
+                        threadId = OpcAeClientRun.opcThreads.TryGetValue(ip, out var thread)
+                            ? thread.ManagedThreadId
+                            : 0
                     };
                 }
+
                 return Response.AsJson(result);
             });
-
         }
     }
+
     // 启动配置：开启静态文件 + 模板目录
     public class Bootstrapper : DefaultNancyBootstrapper
     {
@@ -120,7 +106,6 @@ namespace opcLearn.config
 
     public static class WebConfig
     {
-
         public static void run()
         {
             var uri = new Uri("http://localhost:9000");

@@ -1,20 +1,18 @@
-﻿using Dapper;
-using opcLearn.config;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using Dapper;
+using opcLearn.config;
 
 namespace opcLearn.util
 {
     public static class DBUtil
     {
         /// <summary>
-        /// 获取连接
+        ///     获取连接
         /// </summary>
         public static SqlConnection GetConnection(string dbName = "Default")
         {
@@ -41,6 +39,7 @@ namespace opcLearn.util
                 return conn.QueryFirst<T>(sql, param);
             }
         }
+
         /*
          * var user = DBUtil.QueryFirstOrDefault<User>("select * from Users where Id=@Id", new { Id = 1 });
          */
@@ -63,6 +62,7 @@ namespace opcLearn.util
                 return conn.Execute(sql, param);
             }
         }
+
         /*
             var id = DBUtil.ExecuteScalar<int>(@"
             insert into Users(Name,Age)
@@ -121,8 +121,8 @@ namespace opcLearn.util
         {
             var type = typeof(T);
             var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                            .Where(p => p.CanRead && p.Name != "Id" || p.Name != "ID") // 自增主键一般不插
-                            .ToList();
+                .Where(p => (p.CanRead && p.Name != "Id") || p.Name != "ID") // 自增主键一般不插
+                .ToList();
 
             var columnNames = string.Join(", ", props.Select(p => p.Name));
             var paramNames = string.Join(", ", props.Select(p => "@" + p.Name));
@@ -140,8 +140,8 @@ namespace opcLearn.util
         {
             var type = typeof(T);
             var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                            .Where(p => p.CanRead && p.Name != "Id" && p.Name != "ID")
-                            .ToList();
+                .Where(p => p.CanRead && p.Name != "Id" && p.Name != "ID")
+                .ToList();
 
             var columnNames = string.Join(", ", props.Select(p => p.Name));
             var paramNames = string.Join(", ", props.Select(p => "@" + p.Name));
@@ -158,8 +158,8 @@ namespace opcLearn.util
         {
             var type = typeof(T);
             var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                            .Where(p => p.CanRead && p.Name != "Id" && p.Name != "ID")
-                            .ToList();
+                .Where(p => p.CanRead && p.Name != "Id" && p.Name != "ID")
+                .ToList();
 
             var setParts = string.Join(", ", props.Select(p => $"{p.Name}=@{p.Name}"));
             var sql = $"UPDATE {type.Name} SET {setParts} WHERE Id=@Id";

@@ -1,14 +1,9 @@
-﻿using GodSharp.Opc.Da;
-using Opc.UaFx.Client;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 using opcLearn.config;
 using opcLearn.discoverServer;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using YokogawaAE;
 
 namespace opcLearn.core
@@ -17,19 +12,22 @@ namespace opcLearn.core
     {
         // OPC 服务配置
         public static readonly List<OPCServerConfig> oPCServerConfigs = AppConfigLoader.GetOPCServers();
+
         // OPC 线程
-        public static Dictionary<String, Thread> opcThreads = new Dictionary<string, Thread>();
+        public static Dictionary<string, Thread> opcThreads = new Dictionary<string, Thread>();
+
         // 线程停止标志
-        public static Dictionary<String, Boolean> opcThreadsRunning = new Dictionary<string, Boolean>();
+        public static Dictionary<string, bool> opcThreadsRunning = new Dictionary<string, bool>();
+
         // 防止重复启动
-        public static Dictionary<String, Object> opcLocks = new Dictionary<string, Object>();
+        public static Dictionary<string, object> opcLocks = new Dictionary<string, object>();
+
         // OPC 服务链接信息
-        public static Dictionary<String, String> hostInfo = new Dictionary<String, String>();
+        public static Dictionary<string, string> hostInfo = new Dictionary<string, string>();
 
 
         public static void runOPC()
         {
-
             Log.Information("==========================================");
             Log.Information("   Yokogawa OPC UA AE 客户端 v1.0        ");
             Log.Information("==========================================");
@@ -51,23 +49,21 @@ namespace opcLearn.core
             {
                 Log.Error(ex, ex.Message);
             }
-
         }
 
         /// <summary>
-        /// 看门狗：检查 OPC 线程是否存活
+        ///     看门狗：检查 OPC 线程是否存活
         /// </summary>
         public static void StartOpcWatchDog()
         {
             var watchThread = new Thread(() =>
             {
                 while (true)
-                {
                     try
                     {
                         oPCServerConfigs.ForEach(config =>
                         {
-                            Thread _opcThread = opcThreads[config.IP];
+                            var _opcThread = opcThreads[config.IP];
                             if (_opcThread == null || !_opcThread.IsAlive)
                             {
                                 opcThreadsRunning[config.IP] = false;
@@ -82,7 +78,6 @@ namespace opcLearn.core
                         Log.Error(ex, "OPC 看门狗异常");
                         Thread.Sleep(5000);
                     }
-                }
             })
             {
                 Name = "OPC-WatchDog",
@@ -93,12 +88,12 @@ namespace opcLearn.core
         }
 
         /// <summary>
-        /// 启动或重启 OPC 线程
+        ///     启动或重启 OPC 线程
         /// </summary>
         private static void StartOrRestartOpcThread(string host, string ProgId)
         {
-            Object _opcLock = opcLocks[host];
-            Thread _opcThread = opcThreads[host];
+            var _opcLock = opcLocks[host];
+            var _opcThread = opcThreads[host];
             lock (_opcLock)
             {
                 // 如果线程还活着，不重复启动
@@ -123,7 +118,7 @@ namespace opcLearn.core
             // 先判断 host 是否存在，且对应的值是否为 null
             if (!hostInfo.TryGetValue(host, out var uri) || uri == null)
             {
-                var list = DiscoverServer.getAEServer(host, isPrint: false);
+                var list = DiscoverServer.getAEServer(host, false);
                 if (list == null || list.Count == 0)
                 {
                     Log.Warning("AEServer 获取为空");
@@ -131,14 +126,13 @@ namespace opcLearn.core
                 }
 
                 foreach (var item in list)
-                {
                     if (ProgId.Equals(item.ProgId))
                     {
                         hostInfo[host] = item.Uri; // 不存在的 key 会自动添加
-                        Log.Information($"Name={item.Name}, ClassId={item.ClassId}, ProgId={item.ProgId}, Uri={item.Uri}");
+                        Log.Information(
+                            $"Name={item.Name}, ClassId={item.ClassId}, ProgId={item.ProgId}, Uri={item.Uri}");
                         break;
                     }
-                }
 
                 // 再次判断是否成功赋值
                 if (!hostInfo.TryGetValue(host, out uri) || uri == null)
@@ -148,14 +142,11 @@ namespace opcLearn.core
                 }
             }
 
-            using (var aeClient = new YokogawaAEClient(serverUrl: hostInfo[host], host: host))
+            using (var aeClient = new YokogawaAEClient(hostInfo[host], host))
             {
                 try
                 {
-                    aeClient.OnLog += message =>
-                    {
-                        Log.Information(message);
-                    };
+                    aeClient.OnLog += message => { Log.Information(message); };
                     // 注册报警事件处理器
                     aeClient.OnAlarmReceived += alarm =>
                     {
@@ -180,6 +171,7 @@ namespace opcLearn.core
                         Console.ReadKey();
                         return;
                     }
+
                     opcThreadsRunning[host] = true;
                     // 1. 浏览节点树
                     // Console.WriteLine();
@@ -191,10 +183,7 @@ namespace opcLearn.core
                     Console.WriteLine("========== 步骤2: 报警源列表 ==========");
                     Console.WriteLine();
                     var sources = aeClient.GetAlarmSources();
-                    foreach (var s in sources)
-                    {
-                        Console.WriteLine("  * " + s.DisplayName + " (" + s.NodeId + ")");
-                    }
+                    foreach (var s in sources) Console.WriteLine("  * " + s.DisplayName + " (" + s.NodeId + ")");
 
                     // 3. 订阅报警
                     Console.WriteLine();
@@ -212,6 +201,7 @@ namespace opcLearn.core
                                 Console.WriteLine(aeClient.clientState());
                                 break;
                             }
+
                             Thread.Sleep(1000);
                         }
                     }

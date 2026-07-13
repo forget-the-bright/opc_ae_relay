@@ -1,16 +1,9 @@
-﻿using Serilog;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace opcLearn.config
 {
-
-
     public static class AlarmConfigLoader
     {
         // 全局静态缓存：程序启动时加载一次
@@ -22,7 +15,7 @@ namespace opcLearn.config
         }
 
         /// <summary>
-        /// 加载 XML 配置到内存（程序启动时调用）
+        ///     加载 XML 配置到内存（程序启动时调用）
         /// </summary>
         public static void LoadAlarmRules()
         {
@@ -32,7 +25,7 @@ namespace opcLearn.config
         }
 
         /// <summary>
-        /// 获取所有加载的告警规则
+        ///     获取所有加载的告警规则
         /// </summary>
         public static List<AlarmRule> GetAllRules()
         {
@@ -45,16 +38,19 @@ namespace opcLearn.config
         public static AlarmRule Match(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
-            int substrLen = 15;
-            return _alarmRules.FirstOrDefault(r => (text.Length > substrLen ? text.Substring(text.Length - substrLen) : text).Contains(r.Code));
+            var substrLen = 15;
+            return _alarmRules.FirstOrDefault(r =>
+                (text.Length > substrLen ? text.Substring(text.Length - substrLen) : text).Contains(r.Code));
         }
+
         public static AlarmRule MatchNew(string eventTypeId)
         {
             if (string.IsNullOrWhiteSpace(eventTypeId)) return null;
-            string alarmType = eventTypeId.Split(':').Last();
+            var alarmType = eventTypeId.Split(':').Last();
             //Log.Information(alarmType);
             return _alarmRules.FirstOrDefault(r => alarmType.Contains(r.Code));
         }
+
         public static void init()
         {
         }

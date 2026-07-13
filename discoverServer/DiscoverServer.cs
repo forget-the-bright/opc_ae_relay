@@ -1,14 +1,10 @@
-﻿using GodSharp.Opc.Da;
-using Opc.UaFx;
+﻿using System;
+using System.Collections.Generic;
+using GodSharp.Opc.Da;
 using Opc.UaFx.Classic;
-using Opc.UaFx.Client;
 using Opc.UaFx.Client.Classic;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 namespace opcLearn.discoverServer
 {
     public class DiscoverServer
@@ -17,7 +13,7 @@ namespace opcLearn.discoverServer
         {
             // 目标主机：本机填 "." 或 "localhost"，远程填 IP/计算机名
 
-            string[] serverProgIds = new string[] { };
+            string[] serverProgIds = { };
             try
             {
                 // 1. 创建服务器发现实例
@@ -29,10 +25,7 @@ namespace opcLearn.discoverServer
                 Console.WriteLine($"=== 主机 {host} 上的 OPC DA 服务器 ProgID ===");
                 Console.WriteLine("-----------------------------------------------------------");
 
-                foreach (string progId in serverProgIds)
-                {
-                    Console.WriteLine(progId);
-                }
+                foreach (var progId in serverProgIds) Console.WriteLine(progId);
             }
             catch (Exception ex)
             {
@@ -42,9 +35,10 @@ namespace opcLearn.discoverServer
             return serverProgIds;
         }
 
-        public static List<(string Name, string ClassId, string ProgId, string Uri)> getAEServer(string host = "10.100.107.1",bool isPrint = true)
+        public static List<(string Name, string ClassId, string ProgId, string Uri)> getAEServer(
+            string host = "10.100.107.1", bool isPrint = true)
         {
-            var list = new List<(string Name, string ClassId, string ProgId, string Uri)> { };
+            var list = new List<(string Name, string ClassId, string ProgId, string Uri)>();
             try
             {
                 using (var discoveryClient = new OpcClassicDiscoveryClient(host))
@@ -56,18 +50,17 @@ namespace opcLearn.discoverServer
                     foreach (var server in servers)
                     {
                         if (isPrint)
-                        {
                             Console.WriteLine(
-                      $@"Name={server.Name}, ClassId={server.ClassId}, ProgId={server.ProgId}, Uri={server.Uri}"
+                                $@"Name={server.Name}, ClassId={server.ClassId}, ProgId={server.ProgId}, Uri={server.Uri}"
                             );
-                        }
                         list.Add((server.Name, server.ClassId.ToString(), server.ProgId, server.Uri.ToString()));
                     }
+
                     return list;
                 }
             }
-            catch (Exception ex) {
-
+            catch (Exception ex)
+            {
                 Log.Error(ex, ex.Message);
                 return list;
             }

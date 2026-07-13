@@ -2,6 +2,7 @@
 using Opc.UaFx;
 using Opc.UaFx.Client;
 using opcLearn.config;
+using opcLearn.util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,29 +13,128 @@ using System.Text.RegularExpressions;
 
 namespace YokogawaAE
 {
+
     /// <summary>
-    /// 报警事件数据模型
+    /// OPC AE 报警事件实体（对应数据库表 AlarmEvent）
     /// </summary>
     public class AlarmEventData
     {
+        /// <summary>
+        /// 自增主键ID
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        /// OPC事件唯一ID
+        /// </summary>
         public string EventId { get; set; }
-        public OpcEventType EventType { get; set; }
+
+        /// <summary>
+        /// 事件类型名称
+        /// </summary>
+        public string EventType { get; set; }
+
+        /// <summary>
+        /// 事件类型节点ID
+        /// </summary>
         public string EventTypeId { get; set; }
+
+        /// <summary>
+        /// 事件源名称（点位/标签名）
+        /// </summary>
         public string SourceName { get; set; }
+
+        /// <summary>
+        /// 事件源节点ID
+        /// </summary>
         public string SourceNodeId { get; set; }
+
+        /// <summary>
+        /// 事件节点ID
+        /// </summary>
+        public string NodeId { get; set; }
+
+        /// <summary>
+        /// 报警消息
+        /// </summary>
         public string Message { get; set; }
-        public OpcText MessageMeta { get; set; }
+
+        /// <summary>
+        /// 报警级别（1低、2中、3高）
+        /// </summary>
         public int Severity { get; set; }
+
+        /// <summary>
+        /// 事件发生时间（OPC服务器时间）
+        /// </summary>
         public DateTime Time { get; set; }
+
+        /// <summary>
+        /// 客户端接收时间
+        /// </summary>
         public DateTime ReceiveTime { get; set; }
-        public bool IsActive { get; set; }
-        public bool IsAcked { get; set; }
+
+        /// <summary>
+        /// 来源OPC服务器IP
+        /// </summary>
+        public string Host { get; set; }
+
+        /// <summary>
+        /// 报警是否激活（当前未赋值，可为null）
+        /// </summary>
+        public bool? IsActive { get; set; }
+
+        /// <summary>
+        /// 是否已确认（当前未赋值，可为null）
+        /// </summary>
+        public bool? IsAcked { get; set; }
+
+        /// <summary>
+        /// 条件名称（如HH、LO等，当前未赋值，可为null）
+        /// </summary>
         public string ConditionName { get; set; }
 
+        // ====================== 你新增的匹配规则字段 ======================
+
+        /// <summary>
+        /// 匹配到的报警规则名称（来自application.xml的AlarmRules.Name）
+        /// </summary>
+        public string MatchedRuleName { get; set; }
+
+        /// <summary>
+        /// 匹配到的规则事件类型（来自AlarmRules.EventType：Alarm/Status/Mode）
+        /// </summary>
+        public string MatchedRuleEventType { get; set; }
+
+        /// <summary>
+        /// 匹配到的规则描述（来自AlarmRules.Desc）
+        /// </summary>
+        public string MatchedRuleDescription { get; set; }
         public override string ToString()
         {
             return string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}] {2}: {3} (类型:{4}, 激活:{5}, 确认:{6})",
                 Time, Severity, SourceName, Message, EventType, IsActive, IsAcked);
+        }
+
+        public static string getInsertSql()
+        {
+            var sql = @"
+INSERT INTO AlarmEvent
+(
+    EventId, EventType, EventTypeId, SourceName, SourceNodeId, NodeId,
+    Message, Severity, Time, ReceiveTime, Host,
+    IsActive, IsAcked, ConditionName,
+    MatchedRuleName, MatchedRuleEventType, MatchedRuleDescription
+)
+VALUES
+(
+    @EventId, @EventType, @EventTypeId, @SourceName, @SourceNodeId, @NodeId,
+    @Message, @Severity, @Time, @ReceiveTime, @Host,
+    @IsActive, @IsAcked, @ConditionName,
+    @MatchedRuleName, @MatchedRuleEventType, @MatchedRuleDescription
+);
+SELECT SCOPE_IDENTITY();";
+            return sql;
         }
     }
 
@@ -247,27 +347,32 @@ namespace YokogawaAE
                 if (opcEvent == null) return;
 
                 // 3. 获取所有原始值（仅调试，丢失字段名）
-               // object[] allVals = opcEvent.GetAllDataStoreValues();
+                // object[] allVals = opcEvent.GetAllDataStoreValues();
                 //string result = OpcEventDataStoreHelper.FormatObjectArray(allVals);
-               // Log($"[OPC-AE-{_host}]- {result}");
+                // Log($"[OPC-AE-{_host}]- {result}");
                 //string log = $"Time={opcEvent.Time},SourceNodeId={opcEvent.SourceNodeId},SourceName={opcEvent.SourceName},Severity={(ushort)opcEvent.Severity},ReceiveTime={opcEvent.ReceiveTime},NodeId={opcEvent.NodeId},Msg={opcEvent.Message},EventTypeId={opcEvent.EventTypeId},EventType={opcEvent.EventType},EventId={ConvertByteString(opcEvent.EventId)}";
-               // Log($"[OPC-AE-{_host}]- {log}");
+                // Log($"[OPC-AE-{_host}]- {log}");
                 // 反射获取OpcEvent所有公开属性名
                 var alarmData = new AlarmEventData
                 {
                     EventId = ConvertByteString(opcEvent.EventId),
-                    EventType = opcEvent.EventType,
+                    EventType = opcEvent.EventType.ToString(),
                     EventTypeId = opcEvent.EventTypeId != null ? opcEvent.EventTypeId.ToString() : "N/A",
                     SourceName = opcEvent.SourceName ?? "N/A",
                     SourceNodeId = opcEvent.SourceNodeId != null ? opcEvent.SourceNodeId.ToString() : "N/A",
+                    NodeId = opcEvent.NodeId != null ? opcEvent.NodeId.ToString() : "N/A",
                     Message = opcEvent.Message != null ? opcEvent.Message.ToString() : "",
-                    MessageMeta = opcEvent.Message,
                     Severity = (int)(opcEvent.Severity),
                     Time = opcEvent.Time,
-                    ReceiveTime = opcEvent.ReceiveTime
+                    ReceiveTime = opcEvent.ReceiveTime,
+                    Host = _host
                 };
 
                 AlarmInfo alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
+                alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";
+                alarmData.MatchedRuleEventType = alarmInfo.MatchedRule?.EventType ?? "";
+                alarmData.MatchedRuleDescription = alarmInfo.MatchedRule?.Description ?? "";
+
                 message = alarmData.Message;
                 var alarm = e.Event as OpcAlarmCondition;
                 //这里有问题不是OpcAlarmCondition 也能转换，且永不为null
@@ -279,15 +384,17 @@ namespace YokogawaAE
                         Console.WriteLine($"{(alarm.IsActive ? "active" : "inactive")}!");
                     }
                 }
+                var idObject = DBUtil.ExecuteScalar(AlarmEventData.getInsertSql(), alarmData);
 
-                Log(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}]]",
+                Log(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}] - [{7}]]",
                        _host,
                       opcEvent.EventType,
                       alarmData.SourceName,
                       alarmData.Message,
                       alarmInfo.MatchedRule?.Name ?? "",
                       alarmInfo.MatchedRule?.EventType ?? "",
-                      alarmInfo.MatchedRule?.Description ?? ""
+                      alarmInfo.MatchedRule?.Description ?? "",
+                      idObject
                   ));
 
 
@@ -495,7 +602,7 @@ namespace YokogawaAE
         public AlarmRule MatchedRule { get; set; } // 匹配到的规则
 
         /// 全局匹配解析方法
-        public static AlarmInfo ParseAlarm(string input,string eventTypeId)
+        public static AlarmInfo ParseAlarm(string input, string eventTypeId)
         {
             AlarmInfo result = new AlarmInfo();
             string raw = input.Trim();

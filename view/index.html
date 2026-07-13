@@ -14,62 +14,41 @@
     <div class="container">
         <!-- 左侧菜单 -->
         <aside class="sidebar">
-            <div class="menu-item active" data-target="opc1">
-                <h3>OPC 1</h3>
-                <p class="status" id="status-opc1">连接中...</p>
+            @Each.Model.OpcServers
+            <div class="menu-item @Current.ActiveClass" data-target="@Current.Key">
+                <h3>@Current.Name</h3>
+                <p class="status" id="status-@Current.Key">连接中...</p>
             </div>
-            <div class="menu-item" data-target="opc2">
-                <h3>OPC 2</h3>
-                <p class="status" id="status-opc2">连接中...</p>
-            </div>
+            @EndEach
         </aside>
 
         <!-- 右侧内容区 -->
         <main class="content">
             <!-- 状态信息面板 -->
-            <section class="info-panel" id="info-opc1" style="display:block;">
-                <h2>OPC 1 状态信息</h2>
+            @Each.Model.OpcServers
+            <section class="info-panel" id="info-@Current.Key" style="display: @Current.DisplayStyle;">
+                <h2>@Current.Name 状态信息</h2>
                 <div class="info-grid">
                     <div class="info-item">
                         <label>服务器 IP:</label>
-                        <span id="opc1-ip">--</span>
+                        <span id="ip-@Current.Key">--</span>
                     </div>
                     <div class="info-item">
                         <label>ProgID:</label>
-                        <span id="opc1-progid">--</span>
+                        <span id="progid-@Current.Key">--</span>
                     </div>
                     <div class="info-item">
                         <label>运行状态:</label>
-                        <span id="opc1-running">--</span>
+                        <span id="running-@Current.Key">--</span>
                     </div>
                     <div class="info-item">
                         <label>线程 ID:</label>
-                        <span id="opc1-thread">--</span>
+                        <span id="thread-@Current.Key">--</span>
                     </div>
                 </div>
             </section>
+            @EndEach
 
-            <section class="info-panel" id="info-opc2" style="display:none;">
-                <h2>OPC 2 状态信息</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <label>服务器 IP:</label>
-                        <span id="opc2-ip">--</span>
-                    </div>
-                    <div class="info-item">
-                        <label>ProgID:</label>
-                        <span id="opc2-progid">--</span>
-                    </div>
-                    <div class="info-item">
-                        <label>运行状态:</label>
-                        <span id="opc2-running">--</span>
-                    </div>
-                    <div class="info-item">
-                        <label>线程 ID:</label>
-                        <span id="opc2-thread">--</span>
-                    </div>
-                </div>
-            </section>
 
             <!-- 日志模块 -->
             <section class="log-panel">

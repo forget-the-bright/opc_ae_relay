@@ -6,6 +6,7 @@ using Opc.UaFx.Client;
 using opcLearn.config;
 using opcLearn.core;
 using opcLearn.discoverServer;
+using opcLearn.util;
 using Serilog;
 using System;
 using System.Threading;
@@ -29,6 +30,49 @@ namespace YokogawaAE
             {
                 Log.Error(ex, ex.Message);
             }
+        }
+
+        public static void testInsert()
+        {
+            int id = DBUtil.Execute($@"INSERT INTO [dbo].[AlarmEvent] (
+    EventId,
+    EventType,
+    EventTypeId,
+    SourceName,
+    SourceNodeId,
+    NodeId,
+    Message,
+    Severity,
+    Time,
+    ReceiveTime,
+    Host,
+    IsActive,
+    IsAcked,
+    ConditionName,
+    MatchedRuleName,
+    MatchedRuleEventType,
+    MatchedRuleDescription
+)
+VALUES (
+    'TEST_EVENT_001',
+    'Alarm',
+    'ns=0;i=1234',
+    'FIC101_PID',
+    'ns=2;s=Channel1.Device1.Tag1',
+    'ns=3;s=AlarmEvent1',
+    '高高报警，超出量程上限',
+    3,
+    GETDATE(),
+    GETDATE(),
+    '10.100.107.1',
+    1,
+    0,
+    'HH',
+    '高高报警',
+    'Alarm',
+    '测量值超过高高限'
+);");
+
         }
 
 

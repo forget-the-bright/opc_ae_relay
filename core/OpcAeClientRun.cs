@@ -1,6 +1,7 @@
-﻿using Opc.UaFx.Client;
-using opcLearn.discoverServer;
+﻿using GodSharp.Opc.Da;
+using Opc.UaFx.Client;
 using opcLearn.config;
+using opcLearn.discoverServer;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -14,52 +15,17 @@ namespace opcLearn.core
 {
     public class OpcAeClientRun
     {
+        // OPC 服务配置
         public static readonly List<OPCServerConfig> oPCServerConfigs = AppConfigLoader.GetOPCServers();
-
+        // OPC 线程
         public static Dictionary<String, Thread> opcThreads = new Dictionary<string, Thread>();
-
+        // 线程停止标志
         public static Dictionary<String, Boolean> opcThreadsRunning = new Dictionary<string, Boolean>();
-
+        // 防止重复启动
         public static Dictionary<String, Object> opcLocks = new Dictionary<string, Object>();
-
-
-        // OPC 线程
-        private static Thread _opcThread_1;
-        // 线程停止标志
-        private static Boolean _opcThreadRunning_1 = false;
-        // 防止重复启动
-        private static readonly object _opcLock_1 = new object();
-
-
-        // OPC 线程
-        private static Thread _opcThread_2;
-        // 线程停止标志
-        private static Boolean _opcThreadRunning_2 = false;
-        // 防止重复启动
-        private static readonly object _opcLock_2 = new object();
-
-        public static string host1 = "10.100.107.1";
-        public static string host2 = "10.100.107.2";
-
+        // OPC 服务链接信息
         public static Dictionary<String, String> hostInfo = new Dictionary<String, String>();
-        public static bool get_opcThreadRunning_1()
-        {
-            return _opcThreadRunning_1;
-        }
 
-        public static string get_opcThreadRunning_1ID()
-        {
-            return _opcThread_1?.ToString() ?? "";
-        }
-        public static bool get_opcThreadRunning_2()
-        {
-            return _opcThreadRunning_2;
-        }
-
-        public static string get_opcThreadRunning_2ID()
-        {
-            return _opcThread_2?.ToString() ?? "";
-        }
 
         public static void runOPC()
         {
@@ -78,7 +44,7 @@ namespace opcLearn.core
                     opcThreadsRunning[config.IP] = false;
                     opcLocks[config.IP] = new object();
 
-                    StartOrRestartOpcThread(config.IP);
+                    StartOrRestartOpcThread(config.IP, config.ProgId);
                 });
             }
             catch (Exception ex)
@@ -106,7 +72,7 @@ namespace opcLearn.core
                             {
                                 opcThreadsRunning[config.IP] = false;
                                 Log.Warning($"{config.Name} 线程不存在或已死亡，准备重启...");
-                                StartOrRestartOpcThread(config.IP);
+                                StartOrRestartOpcThread(config.IP, config.ProgId);
                             }
                         });
                         Thread.Sleep(5000); // 5 秒检查一次
@@ -129,11 +95,10 @@ namespace opcLearn.core
         /// <summary>
         /// 启动或重启 OPC 线程
         /// </summary>
-        private static void StartOrRestartOpcThread(string host)
+        private static void StartOrRestartOpcThread(string host, string ProgId)
         {
             Object _opcLock = opcLocks[host];
             Thread _opcThread = opcThreads[host];
-            //opcThreadsRunning[host];
             lock (_opcLock)
             {
                 // 如果线程还活着，不重复启动
@@ -143,9 +108,7 @@ namespace opcLearn.core
 
                 Log.Information($"准备启动/重启 OPC {host} 监听线程...");
 
-                //_opcThreadRunning_1 = true;
-
-                opcThreads[host] = new Thread(() => { OpcWork(host); });
+                opcThreads[host] = new Thread(() => { OpcWork(host, ProgId); });
                 opcThreads[host].Name = $"OPC-AE-[{host}]-Listener"; // 线程名，Serilog 会显示
                 opcThreads[host].IsBackground = true;
                 opcThreads[host].Start();
@@ -155,21 +118,37 @@ namespace opcLearn.core
         }
 
 
-        private static void OpcWork(string host)
+        private static void OpcWork(string host, string ProgId)
         {
-
-            var list = DiscoverServer.getAEServer(host, isPrint: false);
-            if (list == null || list.Count == 0)
+            // 先判断 host 是否存在，且对应的值是否为 null
+            if (!hostInfo.TryGetValue(host, out var uri) || uri == null)
             {
-                Log.Warning("AEServer 获取为空");
-                return;
+                var list = DiscoverServer.getAEServer(host, isPrint: false);
+                if (list == null || list.Count == 0)
+                {
+                    Log.Warning("AEServer 获取为空");
+                    return;
+                }
+
+                foreach (var item in list)
+                {
+                    if (ProgId.Equals(item.ProgId))
+                    {
+                        hostInfo[host] = item.Uri; // 不存在的 key 会自动添加
+                        Log.Information($"Name={item.Name}, ClassId={item.ClassId}, ProgId={item.ProgId}, Uri={item.Uri}");
+                        break;
+                    }
+                }
+
+                // 再次判断是否成功赋值
+                if (!hostInfo.TryGetValue(host, out uri) || uri == null)
+                {
+                    Log.Warning($"目标opc服务器:[{host}]没有配置指定的ProgId:[{ProgId}]");
+                    return;
+                }
             }
-            //A&E Server（基础）	Yokogawa.ExaopcAECS1	最大客户端100	| 最大 Item/Tags1,000 事件订阅对象	
-            //A&E 1.10；支持系统/过程/操作等8类事件
-            var server = list[2];
-            Log.Information($@"Name={server.Name}, ClassId={server.ClassId}, ProgId={server.ProgId}, Uri={server.Uri}");
-            hostInfo[host] = server.Uri;
-            using (var aeClient = new YokogawaAEClient(serverUrl: server.Uri, host: host))
+
+            using (var aeClient = new YokogawaAEClient(serverUrl: hostInfo[host], host: host))
             {
                 try
                 {

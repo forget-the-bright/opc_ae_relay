@@ -1,4 +1,4 @@
-﻿// 切换 OPC 面板
+﻿// 切换 OPC 面板（通用版，支持动态任意数量）
 document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', () => {
         const target = item.dataset.target;
@@ -10,48 +10,55 @@ document.querySelectorAll('.menu-item').forEach(item => {
         document.getElementById(`info-${target}`).style.display = 'block';
     });
 });
+
+// 加载日志
 function fetchLogs() {
     fetch('/api/logs')
         .then(res => res.json())
         .then(logs => {
             const logContainer = document.getElementById('log-container');
+            logContainer.innerHTML = ''; // 清空旧日志
             logs.forEach(line => {
                 const div = document.createElement('div');
                 div.className = 'log-item';
                 div.textContent = line;
                 logContainer.appendChild(div);
             });
-            // 限制最多 100 条
-            while (logContainer.children.length > 100) {
-                logContainer.removeChild(logContainer.firstChild);
-            }
             logContainer.scrollTop = logContainer.scrollHeight;
         });
 }
-// 每 500ms 拉一次
 setInterval(fetchLogs, 500);
-fetchLogs(); // 首次拉取
+fetchLogs();
 
-// 定时获取状态信息（每 5 秒）
+// 动态刷新所有 OPC 状态（通用版，自动识别 opc1/opc2/...）
 setInterval(async () => {
     try {
         const res = await fetch('/api/status');
         const status = await res.json();
-        // 更新 OPC1 状态
-        document.getElementById('opc1-ip').textContent = status.opc1.ip;
-        document.getElementById('opc1-progid').textContent = status.opc1.progid;
-        document.getElementById('opc1-running').textContent = status.opc1.running ? '运行中' : '已断开';
-        document.getElementById('opc1-thread').textContent = status.opc1.threadId;
-        document.getElementById('status-opc1').textContent = status.opc1.running ? '在线' : '离线';
-        document.getElementById('status-opc1').className = `status ${status.opc1.running ? 'online' : 'offline'}`;
 
-        // 更新 OPC2 状态
-        document.getElementById('opc2-ip').textContent = status.opc2.ip;
-        document.getElementById('opc2-progid').textContent = status.opc2.progid;
-        document.getElementById('opc2-running').textContent = status.opc2.running ? '运行中' : '已断开';
-        document.getElementById('opc2-thread').textContent = status.opc2.threadId;
-        document.getElementById('status-opc2').textContent = status.opc2.running ? '在线' : '离线';
-        document.getElementById('status-opc2').className = `status ${status.opc2.running ? 'online' : 'offline'}`;
+        // 遍历 status 里的所有 opc 节点：opc1, opc2, opc3...
+        for (const key of Object.keys(status)) {
+            const s = status[key];
+            console.log(s);
+            console.log(key);
+            // 更新面板信息
+            const ipEl = document.getElementById(`ip-${key}`);
+            const progidEl = document.getElementById(`progid-${key}`);
+            const runningEl = document.getElementById(`running-${key}`);
+            const threadEl = document.getElementById(`thread-${key}`);
+            const statusEl = document.getElementById(`status-${key}`);
+
+            if (ipEl) ipEl.textContent = s.ip;
+            if (progidEl) progidEl.textContent = s.progid;
+            if (runningEl) runningEl.textContent = s.running ? '运行中' : '已断开';
+            if (threadEl) threadEl.textContent = s.threadId;
+
+            // 更新左侧状态指示灯
+            if (statusEl) {
+                statusEl.textContent = s.running ? '在线' : '离线';
+                statusEl.className = `status ${s.running ? 'online' : 'offline'}`;
+            }
+        }
     } catch (err) {
         console.error('获取状态失败:', err);
     }

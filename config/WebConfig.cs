@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using YokogawaAE;
 
 namespace opcLearn.config
-
 {
 
 
@@ -27,18 +26,25 @@ namespace opcLearn.config
             // 首页：渲染模板 Views/index.html
             Get("/", _ =>
             {
+                var opcList = OpcAeClientRun.oPCServerConfigs
+                    .Select((cfg, idx) => new
+                    {
+                        Index = idx + 1,
+                        Key = $"opc{idx + 1}",
+                        Name = cfg.Name,
+                        IP = cfg.IP,
+                        ProgId = cfg.ProgId,
+                        ActiveClass = idx == 0 ? "active" : "",  // 预计算
+                        DisplayStyle = idx == 0 ? "block" : "none"  // 预计算
+                    })
+                    .ToList();
+
                 return View["index.html", new
                 {
-                    Title = "告警监控面板",
-                    Now = DateTime.Now,
-                    Logs = new[]{
-                                new { Level = "info", Msg = "系统启动" },
-                                new { Level = "warn", Msg = "连接超时" },
-                                new { Level = "error", Msg = "IOP 报警" }
-                        }
+                    Title = "OPC AE 告警监控面板",
+                    OpcServers = opcList
                 }];
-            }
-            );
+            });
 
 
             // API
@@ -78,8 +84,8 @@ namespace opcLearn.config
                     result[key] = new
                     {
                         ip = ip,
-                        progid = OpcAeClientRun.hostInfo.ContainsKey(ip),
-                       // progid = config.ProgId,
+                        progid = OpcAeClientRun.hostInfo.ContainsKey(ip) ? OpcAeClientRun.hostInfo[ip] : config.ProgId,
+                        // progid = config.ProgId,
                         running = OpcAeClientRun.opcThreadsRunning.TryGetValue(ip, out var isRunning) && isRunning,
                         threadId = OpcAeClientRun.opcThreads.TryGetValue(ip, out var thread) ? thread.ManagedThreadId : 0
                     };
@@ -115,7 +121,8 @@ namespace opcLearn.config
     public static class WebConfig
     {
 
-        public static void run() {
+        public static void run()
+        {
             var uri = new Uri("http://localhost:9000");
             // 关键配置：自动创建 URL 保留，解决权限问题
             var hostConfig = new HostConfiguration

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
-namespace opcLearn.config
+namespace opc_ae_relay.config
 {
     public static class Config
     {

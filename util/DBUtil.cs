@@ -5,9 +5,9 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using Dapper;
-using opcLearn.config;
+using opc_ae_relay.config;
 
-namespace opcLearn.util
+namespace opc_ae_relay.util
 {
     public static class DBUtil
     {

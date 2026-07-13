@@ -6,10 +6,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Opc.UaFx;
 using Opc.UaFx.Client;
-using opcLearn.config;
-using opcLearn.util;
+using opc_ae_relay.config;
+using opc_ae_relay.util;
 
-namespace YokogawaAE
+namespace opc_ae_relay.client
 {
     /// <summary>
     ///     OPC AE 报警事件实体（对应数据库表 AlarmEvent）

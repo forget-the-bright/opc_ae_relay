@@ -4,7 +4,7 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 
-namespace opcLearn.config
+namespace opc_ae_relay.config
 {
     public static class LogConfig
     {

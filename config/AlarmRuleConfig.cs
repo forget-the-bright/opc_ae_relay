@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace opcLearn.config
+namespace opc_ae_relay.config
 {
     public static class AlarmConfigLoader
     {

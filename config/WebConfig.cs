@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Nancy;
 using Nancy.Conventions;
 using Nancy.Hosting.Self;
-using opcLearn.core;
+using opc_ae_relay.core;
 using Serilog;
 
-namespace opcLearn.config
+namespace opc_ae_relay.config
 {
     // 页面路由
     public class HomeModule : NancyModule
@@ -107,7 +106,7 @@ namespace opcLearn.config
     public static class WebConfig
     {
         private static NancyHost _host;
-        private static readonly ManualResetEvent ShutdownEvent = new ManualResetEvent(false);
+
         public static void Start()
         {
             var webConfig = AppConfigLoader.Config.Web ?? new WebServerConfig();
@@ -125,20 +124,6 @@ namespace opcLearn.config
             _host.Start();
 
             Log.Information("Web 服务已启动：{Url}", uri);
-            
-        }
-
-        public static void WaitStop()
-        {
-            Console.CancelKeyPress += OnShutdown;
-            AppDomain.CurrentDomain.ProcessExit += OnShutdown;
-
-            Log.Information("服务已就绪，按 Ctrl+C 优雅退出");
-            ShutdownEvent.WaitOne();
-
-            Log.Information("正在关闭服务...");
-            Stop();
-            Log.Information("服务已安全退出");
         }
 
         public static void Stop()
@@ -146,22 +131,13 @@ namespace opcLearn.config
             try
             {
                 _host?.Stop();
+
                 Log.Information("Web 服务已停止");
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Web 服务停止时出现异常");
             }
-        }
-        
-        private static void OnShutdown(object sender, EventArgs e)
-        {
-            // 阻止运行时直接终止进程，让我们有机会执行 Stop() 清理
-            if (e is ConsoleCancelEventArgs consoleArgs)
-            {
-                consoleArgs.Cancel = true;
-            }
-            ShutdownEvent.Set();
         }
     }
 }

@@ -4,7 +4,7 @@
     <!-- 数据库连接（可多个） -->
     <Databases>
         <Database name="Default"
-                  connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgK@2026;TrustServerCertificate=True"/>
+                  connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgk@2026;TrustServerCertificate=True"/>
     </Databases>
 
     <!-- MQ 配置 -->

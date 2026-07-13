@@ -5,7 +5,7 @@ using Opc.UaFx;
 using Opc.UaFx.Client;
 using Serilog;
 
-namespace opcLearn.discoverServer
+namespace opc_ae_relay.discoverServer
 {
     public static class AeServerSelectTest
     {

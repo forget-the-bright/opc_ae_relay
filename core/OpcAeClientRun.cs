@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using opcLearn.config;
-using opcLearn.discoverServer;
+using opc_ae_relay.config;
+using opc_ae_relay.discoverServer;
+using opc_ae_relay.client;
 using Serilog;
-using YokogawaAE;
 
-namespace opcLearn.core
+namespace opc_ae_relay.core
 {
     public class OpcAeClientRun
     {
+        // 全局关闭标志：所有 OPC 线程循环检查此标志
+        public static volatile bool ShuttingDown = false;
+
         // OPC 服务配置
         public static readonly List<OPCServerConfig> oPCServerConfigs = AppConfigLoader.GetOPCServers();
 
@@ -31,12 +34,6 @@ namespace opcLearn.core
 
         public static void runOPC()
         {
-            Log.Information("==========================================");
-            Log.Information("   Yokogawa OPC UA AE 客户端 v1.0        ");
-            Log.Information("==========================================");
-            Log.Information("");
-
-
             try
             {
                 oPCServerConfigs.ForEach(config =>
@@ -62,7 +59,7 @@ namespace opcLearn.core
         {
             var watchThread = new Thread(() =>
             {
-                while (true)
+                while (!ShuttingDown)
                     try
                     {
                         oPCServerConfigs.ForEach(config =>
@@ -71,8 +68,11 @@ namespace opcLearn.core
                             if (_opcThread == null || !_opcThread.IsAlive)
                             {
                                 opcThreadsRunning[config.IP] = false;
-                                Log.Warning($"{config.Name} 线程不存在或已死亡，准备重启...");
-                                StartOrRestartOpcThread(config.IP, config.ProgId);
+                                if (!ShuttingDown)
+                                {
+                                    Log.Warning($"{config.Name} 线程不存在或已死亡，准备重启...");
+                                    StartOrRestartOpcThread(config.IP, config.ProgId);
+                                }
                             }
                         });
                         Thread.Sleep(5000); // 5 秒检查一次
@@ -153,7 +153,7 @@ namespace opcLearn.core
                 {
                     aeClient.OnLog += message => { Log.Information(message); };
                     // 注册报警事件处理器
-                    aeClient.OnAlarmReceived += alarm =>
+                    /*aeClient.OnAlarmReceived += alarm =>
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine();
@@ -168,7 +168,7 @@ namespace opcLearn.core
                         Console.WriteLine("发生时间: " + alarm.Time.ToString("yyyy-MM-dd HH:mm:ss.fff"));
                         Console.WriteLine("==========================================");
                         Console.ResetColor();
-                    };
+                    };*/
 
                     // 连接
                     if (!aeClient.Connect())
@@ -197,8 +197,7 @@ namespace opcLearn.core
                     if (aeClient.SubscribeAlarms())
                     {
                         Console.WriteLine("等待报警...");
-                        //Console.WriteLine();
-                        while (true)
+                        while (!ShuttingDown)
                         {
                             if (aeClient.isConnected())
                             {
@@ -215,7 +214,36 @@ namespace opcLearn.core
                 {
                     Log.Error(ex, ex.Message);
                 }
+                finally
+                {
+                    opcThreadsRunning[host] = false;
+                    Log.Information($"OPC {host} 线程已退出");
+                }
             }
+        }
+
+        /// <summary>
+        ///     停止所有 OPC 线程
+        /// </summary>
+        public static void StopAll()
+        {
+            ShuttingDown = true;
+            Log.Information("正在停止 OPC 线程...");
+
+            foreach (var kvp in opcThreads)
+            {
+                var thread = kvp.Value;
+                if (thread != null && thread.IsAlive)
+                {
+                    thread.Join(5000);
+                    if (thread.IsAlive)
+                    {
+                        Log.Warning($"OPC 线程 {kvp.Key} 未能在 5 秒内退出");
+                    }
+                }
+            }
+
+            Log.Information("所有 OPC 线程已停止");
         }
     }
 }

@@ -4,7 +4,7 @@
     <!-- 数据库连接（可多个） -->
     <Databases>
         <Database name="Default"
-                  connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgk@2026;TrustServerCertificate=True"/>
+                  connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgK@2026;TrustServerCertificate=True"/>
     </Databases>
 
     <!-- MQ 配置 -->
@@ -22,6 +22,11 @@
         <Server name="Yokogawa.Exaopc_2" progId="Yokogawa.ExaopcAECS1" ip="10.100.107.2" port="135"/>
     </OPCServers>
 
+    <!-- Web 服务配置 -->
+    <Web>
+        <Host>localhost</Host>
+        <Port>9000</Port>
+    </Web>
 
     <AlarmRules>
         <!-- 10.1 报警状态缩略语 -->

@@ -25,6 +25,9 @@ namespace opcLearn.core
         // OPC 服务链接信息
         public static Dictionary<string, string> hostInfo = new Dictionary<string, string>();
 
+        // OPC 线程重启次数
+        public static Dictionary<string, int> restartCount = new Dictionary<string, int>();
+
 
         public static void runOPC()
         {
@@ -41,6 +44,7 @@ namespace opcLearn.core
                     opcThreads[config.IP] = null;
                     opcThreadsRunning[config.IP] = false;
                     opcLocks[config.IP] = new object();
+                    restartCount[config.IP] = -1;
 
                     StartOrRestartOpcThread(config.IP, config.ProgId);
                 });
@@ -115,6 +119,7 @@ namespace opcLearn.core
 
         private static void OpcWork(string host, string ProgId)
         {
+            restartCount[host] += 1;
             // 先判断 host 是否存在，且对应的值是否为 null
             if (!hostInfo.TryGetValue(host, out var uri) || uri == null)
             {

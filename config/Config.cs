@@ -66,6 +66,8 @@ namespace opcLearn.config
         [XmlArrayItem("Server")]
         public List<OPCServerConfig> OPCServers { get; set; }
 
+        [XmlElement("Web")] public WebServerConfig Web { get; set; }
+
         [XmlArray("AlarmRules")]
         [XmlArrayItem("Rule")]
         public List<AlarmRule> AlarmRules { get; set; }
@@ -96,6 +98,14 @@ namespace opcLearn.config
         [XmlAttribute("ip")] public string IP { get; set; }
 
         [XmlAttribute("port")] public int Port { get; set; }
+    }
+
+    public class WebServerConfig
+    {
+        public string Host { get; set; } = "localhost";
+        public int Port { get; set; } = 9000;
+
+        public string BaseUrl => $"http://{Host}:{Port}";
     }
 
     /// <summary>

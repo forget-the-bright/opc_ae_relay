@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Nancy;
 using Nancy.Conventions;
 using Nancy.Hosting.Self;
 using opcLearn.core;
+using Serilog;
 
 namespace opcLearn.config
 {
@@ -12,11 +14,10 @@ namespace opcLearn.config
     public class HomeModule : NancyModule
     {
         // 1. 声明随机数生成器（建议全局只实例化一次）
-        private static readonly Random _random = new Random();
+        // private static readonly Random _random = new Random();
 
         public HomeModule()
         {
-            // 首页：渲染模板 Views/index.html
             Get("/", _ =>
             {
                 var opcList = OpcAeClientRun.oPCServerConfigs
@@ -69,10 +70,9 @@ namespace opcLearn.config
                         ip,
                         progid = OpcAeClientRun.hostInfo.ContainsKey(ip) ? OpcAeClientRun.hostInfo[ip] : config.ProgId,
                         // progid = config.ProgId,
-                        running = OpcAeClientRun.opcThreadsRunning.TryGetValue(ip, out var isRunning) && isRunning,
-                        threadId = OpcAeClientRun.opcThreads.TryGetValue(ip, out var thread)
-                            ? thread.ManagedThreadId
-                            : 0
+                        running = OpcAeClientRun.opcThreadsRunning.TryGetValue(ip, out var isRunning) &&
+                                  isRunning, // 如果当前字典有值, true && 字典中的值，那么最后看的就是字典中的值是否为true
+                        threadId = OpcAeClientRun.restartCount.TryGetValue(ip, out var restartCount) ? restartCount : 0
                     };
                 }
 
@@ -106,10 +106,13 @@ namespace opcLearn.config
 
     public static class WebConfig
     {
-        public static void run()
+        private static NancyHost _host;
+        private static readonly ManualResetEvent ShutdownEvent = new ManualResetEvent(false);
+        public static void Start()
         {
-            var uri = new Uri("http://localhost:9000");
-            // 关键配置：自动创建 URL 保留，解决权限问题
+            var webConfig = AppConfigLoader.Config.Web ?? new WebServerConfig();
+            var uri = new Uri(webConfig.BaseUrl);
+
             var hostConfig = new HostConfiguration
             {
                 UrlReservations = new UrlReservations
@@ -118,12 +121,47 @@ namespace opcLearn.config
                 }
             };
 
-            var host = new NancyHost(hostConfig, uri);
-            host.Start();
+            _host = new NancyHost(hostConfig, uri);
+            _host.Start();
 
-            Console.WriteLine($"Web 运行在：{uri}");
-            Console.ReadLine();
-            host.Stop();
+            Log.Information("Web 服务已启动：{Url}", uri);
+            
+        }
+
+        public static void WaitStop()
+        {
+            Console.CancelKeyPress += OnShutdown;
+            AppDomain.CurrentDomain.ProcessExit += OnShutdown;
+
+            Log.Information("服务已就绪，按 Ctrl+C 优雅退出");
+            ShutdownEvent.WaitOne();
+
+            Log.Information("正在关闭服务...");
+            Stop();
+            Log.Information("服务已安全退出");
+        }
+
+        public static void Stop()
+        {
+            try
+            {
+                _host?.Stop();
+                Log.Information("Web 服务已停止");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Web 服务停止时出现异常");
+            }
+        }
+        
+        private static void OnShutdown(object sender, EventArgs e)
+        {
+            // 阻止运行时直接终止进程，让我们有机会执行 Stop() 清理
+            if (e is ConsoleCancelEventArgs consoleArgs)
+            {
+                consoleArgs.Cancel = true;
+            }
+            ShutdownEvent.Set();
         }
     }
 }

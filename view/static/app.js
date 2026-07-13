@@ -56,7 +56,7 @@ setInterval(async () => {
             if (ipEl) ipEl.textContent = s.ip;
             if (progidEl) progidEl.textContent = s.progid;
             if (runningEl) runningEl.textContent = s.running ? '运行中' : '已断开';
-            if (threadEl) threadEl.textContent = s.threadId;
+            if (threadEl) threadEl.textContent = `${s.threadId}次`;
 
             // 更新左侧状态指示灯
             if (statusEl) {

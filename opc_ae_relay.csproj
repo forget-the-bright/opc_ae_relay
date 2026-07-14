@@ -381,6 +381,10 @@
   </Target>
   <Import Project="packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets" Condition="Exists('packages\Microsoft.Data.SqlClient.SNI.6.0.2\build\net462\Microsoft.Data.SqlClient.SNI.targets')" />
   <Import Project="packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />
+  <Target Name="CleanLogs" BeforeTargets="Build">
+    <!-- 删除 $(TargetDir)logs 目录及其所有内容 -->
+    <RemoveDir Directories="$(TargetDir)logs" />
+  </Target>
   <Target Name="MoveLibsToSubFolder" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <MakeDir Directories="$(TargetDir)lib" />
     <!-- 1. 移动所有依赖 DLL -->
@@ -388,6 +392,8 @@
       <DllFiles Include="$(TargetDir)*.dll" Exclude="$(TargetDir)$(TargetFileName)" />
     </ItemGroup>
     <Move SourceFiles="@(DllFiles)" DestinationFolder="$(TargetDir)lib" ContinueOnError="true" />
+
+
     <!-- 2. 删除 XML 文档（运行时不需要，排除 application.xml） -->
     <!--
          <ItemGroup>

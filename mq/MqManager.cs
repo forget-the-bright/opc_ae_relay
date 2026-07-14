@@ -87,13 +87,13 @@ namespace opc_ae_relay.mq
         {
             if (mqMessage == null)
             {
-                Log.Warning("MqMessage 为 null，跳过发送");
+               // Log.Warning("MqMessage 为 null，跳过发送");
                 return;
             }
 
             if (_producers.Count == 0)
             {
-                Log.Warning("无可用 MQ Producer，消息未发送");
+               // Log.Warning("无可用 MQ Producer，消息未发送");
                 return;
             }
             

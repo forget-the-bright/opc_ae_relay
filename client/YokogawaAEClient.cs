@@ -369,6 +369,7 @@ SELECT SCOPE_IDENTITY();";
                 };
 
                 var alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
+                alarmData.ConditionName = alarmInfo.MatchedRule.Code;
                 alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";
                 alarmData.MatchedRuleEventType = alarmInfo.MatchedRule?.EventType ?? "";
                 alarmData.MatchedRuleDescription = alarmInfo.MatchedRule?.Description ?? "";

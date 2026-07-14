@@ -342,8 +342,6 @@
     <Compile Include="mq\MqManager.cs" />
     <Compile Include="mq\MqMessage.cs" />
     <Compile Include="mq\MqProducerFactory.cs" />
-    <Compile Include="mq\OpcAeAlarmSender.cs" />
-    <Compile Include="mq\RabbitMqConnectionManager.cs" />
     <Compile Include="mq\RabbitMqProducer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

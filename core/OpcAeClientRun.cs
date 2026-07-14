@@ -4,6 +4,7 @@ using System.Threading;
 using opc_ae_relay.config;
 using opc_ae_relay.discoverServer;
 using opc_ae_relay.client;
+using opc_ae_relay.mq;
 using Serilog;
 
 namespace opc_ae_relay.core
@@ -120,6 +121,8 @@ namespace opc_ae_relay.core
 
         private static void OpcWork(string host, string ProgId)
         {
+            //测试mq发送消息
+            //MqManager.SendTestMessageAsync();
             if (ShuttingDown)
                 return;
             restartCount[host] += 1;

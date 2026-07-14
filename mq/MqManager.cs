@@ -11,6 +11,47 @@ namespace opc_ae_relay.mq
     {
         private static readonly List<IMqProducer> _producers = new List<IMqProducer>();
 
+        /// <summary>
+        /// 发送测试消息，用于在无 AE 监听时验证 MQ 连通性和消息格式
+        /// </summary>
+        /// <param name="tag">自定义标签名，模拟 SourceName，默认 "TEST_TAG"</param>
+        /// <returns>发送是否成功</returns>
+        public static async Task<bool> SendTestMessageAsync(string tag = "TEST_TAG")
+        {
+            if (_producers.Count == 0)
+            {
+                Log.Warning("[MQ测试] 无可用 Producer，请先确认 MQ 配置和连接");
+                return false;
+            }
+
+            var testMsg = new MqMessage
+            {
+                SourceName = tag,
+                Message = "这是一条测试消息，用于验证 MQ 推送通道",
+                Severity = 1
+            };
+
+            string json = JsonConvert.SerializeObject(testMsg);
+            Log.Information("[MQ测试] 准备发送测试消息: {Json}", json);
+
+            var success = true;
+            foreach (var producer in _producers)
+            {
+                try
+                {
+                    await producer.SendAsync(tag, json);
+                    Log.Information("[MQ测试] 发送成功");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[MQ测试] 发送失败");
+                    success = false;
+                }
+            }
+
+            return success;
+        }
+
         public static async Task InitAsync()
         {
             var mqConfigs = AppConfigLoader.Config.MQs;

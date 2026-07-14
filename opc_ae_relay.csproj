@@ -9,6 +9,7 @@
     <RootNamespace>opc_ae_relay</RootNamespace>
     <AssemblyName>opc_ae_relay</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>           <!-- 或 8.0 / 9.0 -->
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>

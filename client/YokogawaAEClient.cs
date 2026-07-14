@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Opc.UaFx;
 using Opc.UaFx.Client;
 using opc_ae_relay.config;
+using opc_ae_relay.mq;
 using opc_ae_relay.util;
 
 namespace opc_ae_relay.client
@@ -383,6 +384,16 @@ SELECT SCOPE_IDENTITY();";
                     }
 
                 var idObject = DBUtil.ExecuteScalar(AlarmEventData.getInsertSql(), alarmData);
+
+                var mqMsg = MqMessage.BuildMessage(alarmData);
+                if (mqMsg != null)
+                {
+                    MqManager.SendAlarmAsync(mqMsg).ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            Log($"MQ 发送失败: {t.Exception?.GetBaseException().Message}");
+                    });
+                }
 
                 Log(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}] - [{7}]]",
                     _host,

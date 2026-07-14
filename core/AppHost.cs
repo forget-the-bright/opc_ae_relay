@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using opc_ae_relay.config;
+using opc_ae_relay.mq;
 using Serilog;
 
 namespace opc_ae_relay.core
@@ -23,6 +24,8 @@ namespace opc_ae_relay.core
                 OpcAeClientRun.StartOpcWatchDog();
                 WebConfig.Start();
 
+                MqManager.InitAsync().GetAwaiter().GetResult();
+
                 Console.CancelKeyPress += OnShutdown;
                 AppDomain.CurrentDomain.ProcessExit += OnShutdown;
 
@@ -32,6 +35,7 @@ namespace opc_ae_relay.core
                 Log.Information("正在关闭服务...");
                 WebConfig.Stop();
                 OpcAeClientRun.StopAll();
+                MqManager.ShutdownAsync().GetAwaiter().GetResult();
                 Log.Information("服务已安全退出");
             }
             catch (Exception ex)

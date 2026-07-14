@@ -7,14 +7,32 @@
                   connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgk@2026;TrustServerCertificate=True"/>
     </Databases>
 
-    <!-- MQ 配置 -->
-    <MQ>
-        <Host>127.0.0.1</Host>
-        <Port>5672</Port>
-        <User>admin</User>
-        <Password>123456</Password>
-        <QueueName>mes_data_queue</QueueName>
-    </MQ>
+    <!-- MQ 配置（可多个，type 支持 rabbitmq，未来可扩展 kafka 等） -->
+    <MQs>
+        <MQ name="RabbitMQ-Primary" type="rabbitmq" enabled="false">
+            <Host>127.0.0.1</Host>
+            <Port>5672</Port>
+            <User>admin</User>
+            <Password>123456</Password>
+            <VirtualHost>/</VirtualHost>
+            <Exchange>opc_ae_topic_exchange</Exchange>
+            <ExchangeType>topic</ExchangeType>
+            <QueueName>mes_data_queue</QueueName>
+            <RoutingKeyPrefix>opc.ae</RoutingKeyPrefix>
+            <Durable>true</Durable>
+            <Persistent>false</Persistent>
+            <HeartbeatSeconds>30</HeartbeatSeconds>
+            <RecoveryIntervalSeconds>5</RecoveryIntervalSeconds>
+        </MQ>
+
+        <!-- 示例：禁用第二个 MQ
+        <MQ name="Kafka-Backup" type="kafka" enabled="false">
+            <Host>127.0.0.1</Host>
+            <Port>9092</Port>
+            ...
+        </MQ>
+        -->
+    </MQs>
 
     <!-- OPC 服务器（可多个） -->
     <OPCServers>

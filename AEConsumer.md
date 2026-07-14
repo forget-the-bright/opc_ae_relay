@@ -198,22 +198,66 @@ opc.ae.PDRC-33100
 
 ---
 
-## 7. 客户端接入步骤（参考）
+## 7. 默认队列与策略配置
 
+为方便快速接入，服务端已在 RabbitMQ 管理界面创建了默认队列 `mes_data_queue`，并完成与交换机的绑定。客户端可直接使用该队列消费消息，也可根据自身需求自行创建队列并绑定。
+
+### 7.1 默认队列信息
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| **队列名称** | `mes_data_queue` | 默认队列名，客户端可自定义 |
+| **Virtual Host** | `/` | 默认虚拟主机 |
+| **持久化** | Durable | 队列持久化，RabbitMQ 重启后队列不丢失 |
+
+### 7.2 队列策略（Arguments）
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| `x-message-ttl` | `86400000` | 消息存活时间，单位毫秒（24 小时），超时消息将被自动丢弃 |
+| `x-max-length` | `500000` | 队列最大消息条数，达到上限后触发溢出策略 |
+| `x-overflow` | `drop-head` | 溢出行为：丢弃队列头部（最早）的消息，保留最新消息 |
+
+> **说明**：以上策略旨在防止消息无限堆积导致内存溢出。当消费方处理速度跟不上生产速度时，超过 50 万条或超过 24 小时的旧消息将被自动清理，消费方始终获取到的是最新告警数据。
+
+### 7.3 默认绑定关系
+
+默认队列已绑定到交换机 `opc_ae_topic_exchange`，绑定信息如下：
+
+| 参数 | 值 |
+|---|---|
+| **Exchange** | `opc_ae_topic_exchange` |
+| **To Queue** | `mes_data_queue` |
+| **Routing Key** | `opc.ae.#` |
+
+> **注意**：默认绑定使用 `opc.ae.#` 通配符，表示接收所有 OPC AE 告警消息。若客户端自行创建队列，请根据实际业务需要选择合适的 Binding Key（参见 [3.3 客户端订阅建议](#33-客户端订阅建议binding-key)）。
+
+### 7.4 客户端自行创建队列（可选）
+客户端若需自行创建队列，可参考以下步骤：
+```
+1. 在 RabbitMQ 管理界面或代码中声明新队列（建议设置为 Durable）
+2. 根据业务需要设置队列策略（x-message-ttl / x-max-length / x-overflow）
+3. 将新队列绑定到交换机 opc_ae_topic_exchange
+4. 设置合适的 Binding Key（如 opc.ae.# 或 opc.ae.WI-*）
+5. 开始消费消息
+```
+
+## 8. 客户端接入步骤（参考）
 ```
 1. 建立 RabbitMQ 连接（使用上方连接信息）
-2. 声明一个队列（如：mes_data_queue）
-3. 将队列绑定到交换机 opc_ae_topic_exchange
+2. 使用默认队列 mes_data_queue，或自行声明新队列
+3. 将队列绑定到交换机 opc_ae_topic_exchange（默认队列已绑定）
 4. 设置 Binding Key（如：opc.ae.# 全量订阅）
 5. 开始消费消息
 6. 解析消息 Body（JSON）得到 MqMessage
 7. 二次解析 MqMessage.Message 字段（嵌套 JSON）得到 AlarmEventData
+
 ```
 
 
 ### 消费示例（伪代码）
 
-```python
+```
 # 1. 解析外层
 mq_message = json.loads(body)
 source = mq_message["SourceName"]       # "WI-11301"
@@ -232,7 +276,7 @@ host = alarm_data["Host"]                    # "10.100.107.1"
 
 ---
 
-## 8. 注意事项
+## 9. 注意事项
 
 1. **消息为实时推送，不保证顺序**：消费方需自行处理乱序场景
 2. **消息非持久化**：当前配置 `Persistent=false`，RabbitMQ 重启后消息丢失；如需持久化请联系管理员修改配置

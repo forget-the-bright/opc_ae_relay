@@ -355,6 +355,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />
+    <Content Include="AEConsumer.md" />
     <Content Include="application.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

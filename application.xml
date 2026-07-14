@@ -10,10 +10,10 @@
     <!-- MQ 配置（可多个，type 支持 rabbitmq，未来可扩展 kafka 等） -->
     <MQs>
         <MQ name="RabbitMQ-Primary" type="rabbitmq" enabled="true">
-            <Host>127.0.0.1</Host>
+            <Host>172.16.176.15</Host>
             <Port>5672</Port>
-            <User>guest</User>
-            <Password>guest</Password>
+            <User>admin</User>
+            <Password>SCgk@2026</Password>
             <VirtualHost>/</VirtualHost>
             <Exchange>opc_ae_topic_exchange</Exchange>
             <ExchangeType>topic</ExchangeType>

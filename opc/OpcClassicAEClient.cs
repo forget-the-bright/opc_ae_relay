@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using opc_ae_relay.config;
 using opc_ae_relay.mq;
 using opc_ae_relay.util;
 using Opc.UaFx;
@@ -212,6 +213,8 @@ public class OpcClassicAEClient : IDisposable
 
     private void HandleOpcEvent(object sender, OpcEventReceivedEventArgs e)
     {
+
+
         var message = "";
         try
         {
@@ -239,7 +242,11 @@ public class OpcClassicAEClient : IDisposable
                 ReceiveTime = opcEvent.ReceiveTime,
                 Host = _host
             };
-
+            // 在告警事件处理逻辑中，入库和推送 MQ 之前加判断
+            if (!TagFilterConfig.IsAllowed(alarmData.SourceName))
+            {
+                return; // 标签不在过滤表中，跳过
+            }
             var alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
             alarmData.ConditionName = alarmInfo.MatchedRule.Code;
             alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";

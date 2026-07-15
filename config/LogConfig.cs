@@ -8,7 +8,7 @@ namespace opc_ae_relay.config
 {
     public static class LogConfig
     {
-        public static void init()
+        public static void Init()
         {
             // 全局初始化日志
             Log.Logger = new LoggerConfiguration()

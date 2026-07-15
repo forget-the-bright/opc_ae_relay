@@ -8,10 +8,16 @@ namespace opc_ae_relay.config
 {
     public static class Config
     {
-        public static void initAll()
+        public static void InitAll()
         {
-            LogConfig.init();
-            AlarmConfigLoader.init();
+            LogConfig.Init();
+            AlarmConfigLoader.Init();
+            TagFilterConfig.Init();
+        }
+        
+        public static void StopAll()
+        {
+            TagFilterConfig.Shutdown();
         }
     }
 

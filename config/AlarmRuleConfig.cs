@@ -51,7 +51,7 @@ namespace opc_ae_relay.config
             return _alarmRules.FirstOrDefault(r => alarmType.Contains(r.Code));
         }
 
-        public static void init()
+        public static void Init()
         {
         }
     }

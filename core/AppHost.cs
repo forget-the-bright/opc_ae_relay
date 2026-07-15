@@ -15,12 +15,13 @@ namespace opc_ae_relay.core
         {
             try
             {
-                Config.initAll();
+                
                 Log.Information("==========================================");
                 Log.Information("      通用 OPC UA AE 采集服务 启动中...     ");
                 Log.Information("==========================================");
 
-                // 顺序初始化 web服务 数据库服务 消息队列服务 opc核心管理服务
+                // 顺序初始化 配置监听服务 web服务 数据库服务 消息队列服务 opc核心管理服务
+                Config.InitAll();
                 WebConfig.Start();
                 DbManager.Init();
                 MqManager.InitAsync().GetAwaiter().GetResult();
@@ -34,7 +35,8 @@ namespace opc_ae_relay.core
                 ShutdownEvent.WaitOne();
                 
                 Log.Information("正在关闭服务...");
-                // 顺序关闭 opc核心管理服务 消息队列服务 数据库服务 web服务
+                // 顺序关闭 配置监听服务 opc核心管理服务 消息队列服务 数据库服务 web服务
+                Config.StopAll();
                 OpcAeClientRun.StopAll();
                 MqManager.ShutdownAsync().GetAwaiter().GetResult();
                 DbManager.Shutdown();

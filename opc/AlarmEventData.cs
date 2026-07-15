@@ -98,7 +98,11 @@ namespace opc_ae_relay.opc;
         ///     匹配到的规则描述（来自AlarmRules.Desc）
         /// </summary>
         public string MatchedRuleDescription { get; set; }
-
+        
+        /// <summary>
+        ///     数据库中创建时间（由数据库自己维护默认值）
+        /// </summary>
+        public DateTime CreateTime { get; set; }
         public override string ToString()
         {
             return string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}] {2}: {3} (类型:{4}, 激活:{5}, 确认:{6})",

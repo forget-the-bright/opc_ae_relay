@@ -19,7 +19,7 @@
 
     <!-- MQ 配置（可多个，type 支持 rabbitmq，未来可扩展 kafka 等） -->
     <MQs>
-        <MQ name="RabbitMQ-Primary" type="rabbitmq" enabled="false">
+        <MQ name="RabbitMQ-Primary" type="rabbitmq" enabled="true">
             <Host>172.16.176.15</Host>
             <Port>5672</Port>
             <User>admin</User>

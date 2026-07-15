@@ -67,7 +67,7 @@ namespace opc_ae_relay.config
         /// </summary>
         public static IReadOnlyCollection<string> GetAllTags()
         {
-            CheckReload();
+           // CheckReload();
             return _allowedTags.ToList().AsReadOnly();
         }
 
@@ -125,7 +125,7 @@ namespace opc_ae_relay.config
 
             // 包含常见表头关键词 → 表头
             var lower = value.ToLower();
-            if (lower == "tag" || lower == "标签" || lower == "备注" || lower == "name" || lower == "标签名")
+            if (lower == "tag" || lower == "tags" || lower == "标签" || lower == "备注" || lower == "name" || lower == "标签名")
                 return false;
 
             // 其他情况都当作标签

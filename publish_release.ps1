@@ -14,6 +14,7 @@ New-Item -ItemType Directory -Path $tempDir | Out-Null
 Copy-Item "$sourceDir\*.exe"              $tempDir -Force
 Copy-Item "$sourceDir\*.exe.config"       $tempDir -Force
 Copy-Item "$sourceDir\application.xml"    $tempDir -Force
+Copy-Item "$sourceDir\tagFilter.xlsx"    $tempDir -Force
 
 # 复制 view
 Copy-Item "$sourceDir\view" $tempDir -Recurse -Force

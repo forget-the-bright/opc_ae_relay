@@ -18,6 +18,7 @@ namespace opc_ae_relay.config
         private static HashSet<string> _allowedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static string _filePath;
         private static DateTime _lastWriteTime;
+        private static volatile bool _isLoading;
         private static FileSystemWatcher _watcher;
 
         /// <summary>
@@ -77,26 +78,31 @@ namespace opc_ae_relay.config
             {
                 var newTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                using (var workbook = new XLWorkbook(_filePath))
+                if (IsFileLocked(_filePath))
                 {
-                    var worksheet = workbook.Worksheet(1);
-                    var rows = worksheet.RowsUsed();
-
-                    foreach (var row in rows)
+                    // 文件被占用（如 Excel 打开中），复制到临时文件再读取
+                    Log.Information("tagFilter.xlsx 被占用，使用临时文件读取");
+                    var tempPath = Path.GetTempFileName();
+                    tempPath = Path.ChangeExtension(tempPath, ".xlsx");
+                    try
                     {
-                        var cell = row.Cell(1);
-                        if (cell == null || cell.IsEmpty())
-                            continue;
-
-                        var value = cell.GetValue<string>()?.Trim();
-                        if (string.IsNullOrEmpty(value))
-                            continue;
-
-                        // 跳过表头行（如果第一行是 "Tag" 等文字）
-                        if (row.RowNumber() == 1 && !LooksLikeTag(value))
-                            continue;
-
-                        newTags.Add(value);
+                        File.Copy(_filePath, tempPath, overwrite: true);
+                        using (var workbook = new XLWorkbook(tempPath))
+                        {
+                            ParseTags(workbook, newTags);
+                        }
+                    }
+                    finally
+                    {
+                        try { File.Delete(tempPath); } catch { }
+                    }
+                }
+                else
+                {
+                    // 文件未被占用，直接读取
+                    using (var workbook = new XLWorkbook(_filePath))
+                    {
+                        ParseTags(workbook, newTags);
                     }
                 }
 
@@ -111,6 +117,53 @@ namespace opc_ae_relay.config
             catch (Exception ex)
             {
                 Log.Error(ex, "加载 tagFilter.xlsx 失败");
+            }
+        }
+
+        /// <summary>
+        /// 判断文件是否被其他进程占用
+        /// </summary>
+        private static bool IsFileLocked(string filePath)
+        {
+            try
+            {
+                using (var stream = File.Open(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    return false;
+                }
+            }
+            catch (IOException)
+            {
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// 从 workbook 中解析第一列标签
+        /// </summary>
+        private static void ParseTags(XLWorkbook workbook, HashSet<string> tags)
+        {
+            var worksheet = workbook.Worksheet(1);
+            var rows = worksheet.RowsUsed();
+
+            foreach (var row in rows)
+            {
+                var cell = row.Cell(1);
+                if (cell == null || cell.IsEmpty())
+                    continue;
+
+                var value = cell.GetValue<string>()?.Trim();
+                if (string.IsNullOrEmpty(value))
+                    continue;
+
+                if (row.RowNumber() == 1 && !LooksLikeTag(value))
+                    continue;
+
+                tags.Add(value);
             }
         }
 
@@ -146,6 +199,10 @@ namespace opc_ae_relay.config
                 Log.Information("检测到 tagFilter.xlsx 变更，重新加载...");
                 LoadFromFile();
             }
+            else
+            {
+                Log.Information("tagFilter.xlsx 内容检测未变更, 继续使用缓存数据！");
+            }
         }
 
         private static void StartFileWatcher()
@@ -161,12 +218,7 @@ namespace opc_ae_relay.config
             _watcher.Changed += OnFileChanged;
             _watcher.Created += OnFileChanged;
             _watcher.Deleted += OnFileChanged;
-            _watcher.Renamed += (sender, e) =>
-            {
-                System.Threading.Thread.Sleep(1000);
-                Log.Information("tagFilter.xlsx 文件重命名事件触发");
-                CheckReload();
-            };
+            _watcher.Renamed += OnFileChanged;
 
             _watcher.EnableRaisingEvents = true;
         }
@@ -176,7 +228,22 @@ namespace opc_ae_relay.config
             // 延迟避免 Excel 保存过程中多次触发，也兼容文件替换场景
             System.Threading.Thread.Sleep(1500);
             Log.Information("tagFilter.xlsx 文件变更事件触发: {ChangeType}", e.ChangeType);
-            CheckReload();
+
+            if (_isLoading)
+            {
+                Log.Information("tagFilter.xlsx 正在加载中，跳过本次触发");
+                return;
+            }
+
+            _isLoading = true;
+            try
+            {
+                CheckReload();
+            }
+            finally
+            {
+                _isLoading = false;
+            }
         }
 
         /// <summary>

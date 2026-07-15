@@ -10,7 +10,7 @@ using Opc.UaFx.Client;
 namespace opc_ae_relay.opc;
 
 /// <summary>
-///     Yokogawa OPC UA AE 客户端
+///     通用 OPC UA AE 客户端
 /// </summary>
 public class OpcClassicAEClient : IDisposable
 {

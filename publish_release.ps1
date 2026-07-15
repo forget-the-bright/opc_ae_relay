@@ -1,33 +1,37 @@
-# ========== Path Config ==========
+# 路径配置
 $projectRoot = $PSScriptRoot
-$releasePath = Join-Path $projectRoot "bin\Release"
-$outZipPath  = Join-Path $projectRoot "opc_ae_relay_release.zip"
+$sourceDir   = Join-Path $projectRoot "bin\Release"
+$tempDir     = Join-Path $projectRoot "_publish"
+$outZip      = Join-Path $projectRoot "opc_ae_relay.zip"
 
-# Go to release folder
-Set-Location $releasePath
-
-Write-Host "Work dir: $releasePath"
-Write-Host "Output zip: $outZipPath`n"
-
-# 1. Delete all pdb
-Get-ChildItem -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force
-Write-Host "Deleted all .pdb files"
-
-# 2. Delete all xml under lib
-$libPath = Join-Path $releasePath "lib"
-if (Test-Path $libPath) {
-    Get-ChildItem $libPath -Recurse -Filter *.xml -ErrorAction SilentlyContinue | Remove-Item -Force
+# 清理临时目录
+if (Test-Path $tempDir) {
+    Remove-Item $tempDir -Recurse -Force
 }
-Write-Host "Deleted all .xml files in lib"
+New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-# 3. Delete old zip
-if (Test-Path $outZipPath) {
-    Remove-Item $outZipPath -Force
+# 复制根文件
+Copy-Item "$sourceDir\*.exe"              $tempDir -Force
+Copy-Item "$sourceDir\*.exe.config"       $tempDir -Force
+Copy-Item "$sourceDir\application.xml"    $tempDir -Force
+
+# 复制 view
+Copy-Item "$sourceDir\view" $tempDir -Recurse -Force
+
+# 复制 lib：只排除 *.xml 和 *.pdb，其他全部保留
+$libSource = Join-Path $sourceDir "lib"
+$libDest   = Join-Path $tempDir "lib"
+
+robocopy $libSource $libDest /E /XF *.xml *.pdb /NFL /NDL /NJH /NJS
+
+# 打包
+if (Test-Path $outZip) {
+    Remove-Item $outZip -Force
 }
+Compress-Archive -Path "$tempDir\*" -DestinationPath $outZip
 
-# 4. Create zip
-$files = Get-ChildItem $releasePath -Exclude *.ps1,*.zip
-Compress-Archive -Path $files -DestinationPath $outZipPath
+# 清理临时目录
+Remove-Item $tempDir -Recurse -Force
 
-Write-Host "`nBuild success: $outZipPath"
+Write-Host "Build success: $outZip"
 Read-Host "Press Enter to exit"

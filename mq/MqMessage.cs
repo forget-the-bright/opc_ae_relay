@@ -1,6 +1,6 @@
 using System;
 using Newtonsoft.Json;
-using opc_ae_relay.client;
+using opc_ae_relay.opc;
 
 namespace opc_ae_relay.mq
 {

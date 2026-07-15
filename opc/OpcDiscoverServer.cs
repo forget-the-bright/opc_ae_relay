@@ -7,7 +7,7 @@ using Serilog;
 
 namespace opc_ae_relay.discoverServer
 {
-    public class DiscoverServer
+    public class OpcDiscoverServer
     {
         public static string[] getDaServer(string host = "10.100.107.1")
         {

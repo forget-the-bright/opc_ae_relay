@@ -1,10 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ApplicationConfig>
 
-    <!-- 数据库连接（可多个） -->
+    <!-- 数据库连接（可多个，type 支持 sqlserver/mysql，未来可扩展 postgresql/oracle 等） -->
     <Databases>
-        <Database name="Default"
+        <Database name="SQLServer-Primary" type="sqlserver" enabled="true" isDefault="true"
                   connectionString="Data Source=172.16.176.15;Initial Catalog=OPC_AE_DATA;User ID=sa;Password=SCgk@2026;TrustServerCertificate=True"/>
+
+        <!-- 示例：MySQL 数据库（需安装 MySqlConnector NuGet 包）
+        <Database name="MySQL-Secondary" type="mysql" enabled="false"
+                  connectionString="Server=127.0.0.1;Port=3306;Database=opc_ae_data;Uid=root;Pwd=your_password;"/>
+        -->
+
+        <!-- 示例：禁用的数据库
+        <Database name="PostgreSQL-Backup" type="postgresql" enabled="false"
+                  connectionString="Host=127.0.0.1;Port=5432;Database=opc_ae_data;Username=postgres;Password=your_password;"/>
+        -->
     </Databases>
 
     <!-- MQ 配置（可多个，type 支持 rabbitmq，未来可扩展 kafka 等） -->

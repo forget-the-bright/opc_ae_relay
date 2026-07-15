@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using opc_ae_relay.discoverServer;
 using Opc.UaFx;
 using Opc.UaFx.Client;
 using Serilog;
 
-namespace opc_ae_relay.discoverServer
+namespace opc_ae_relay.test
 {
     public static class AeServerSelectTest
     {
         public static void TestAeServerSelect()
         {
-            var list = DiscoverServer.getAEServer();
+            var list = OpcDiscoverServer.getAEServer();
             if (list == null || list.Count == 0)
             {
                 Log.Warning("AEServer 获取为空");

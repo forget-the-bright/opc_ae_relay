@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using opc_ae_relay.config;
 using opc_ae_relay.discoverServer;
-using opc_ae_relay.client;
-using opc_ae_relay.mq;
+using opc_ae_relay.opc;
 using Serilog;
 
 namespace opc_ae_relay.core
@@ -33,7 +32,7 @@ namespace opc_ae_relay.core
         public static Dictionary<string, int> restartCount = new Dictionary<string, int>();
 
 
-        public static void runOPC()
+        public static void runOPC(bool isRunWatchDog = false)
         {
             try
             {
@@ -46,6 +45,10 @@ namespace opc_ae_relay.core
 
                     StartOrRestartOpcThread(config.IP, config.ProgId);
                 });
+                if (isRunWatchDog)
+                {
+                    StartOpcWatchDog();
+                }
             }
             catch (Exception ex)
             {
@@ -129,7 +132,7 @@ namespace opc_ae_relay.core
             // 先判断 host 是否存在，且对应的值是否为 null
             if (!hostInfo.TryGetValue(host, out var uri) || uri == null)
             {
-                var list = DiscoverServer.getAEServer(host, false);
+                var list = OpcDiscoverServer.getAEServer(host, false);
                 if (list == null || list.Count == 0)
                 {
                     Log.Warning("AEServer 获取为空");
@@ -153,7 +156,7 @@ namespace opc_ae_relay.core
                 }
             }
 
-            using (var aeClient = new YokogawaAEClient(hostInfo[host], host))
+            using (var aeClient = new OpcClassicAEClient(hostInfo[host], host))
             {
                 try
                 {
@@ -210,6 +213,7 @@ namespace opc_ae_relay.core
                                 Console.WriteLine(aeClient.clientState());
                                 break;
                             }
+
                             Thread.Sleep(1000);
                         }
                     }
@@ -243,7 +247,6 @@ namespace opc_ae_relay.core
                     if (thread.IsAlive)
                     {
                         Log.Warning($"OPC 线程 {kvp.Key} 未能在 5 秒内退出");
-                        
                     }
                 }
             }

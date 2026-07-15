@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml.Serialization;
 
 namespace opc_ae_relay.config
@@ -37,8 +38,24 @@ namespace opc_ae_relay.config
 
         public static string GetDbConnection(string name = "Default")
         {
-            return Config.Databases?.Find(d => d.Name == name)?.ConnectionString
-                   ?? throw new Exception($"未找到数据库配置：{name}");
+            // 优先从新配置中查找
+            var dbConfig = Config.Databases?.FirstOrDefault(d => d.Name == name);
+            if (dbConfig != null)
+            {
+                return dbConfig.ConnectionString;
+            }
+
+            // 兼容旧版：如果 name 是 "Default"，查找 isDefault=true 的配置
+            if (name == "Default")
+            {
+                dbConfig = Config.Databases?.FirstOrDefault(d => d.IsDefault);
+                if (dbConfig != null)
+                {
+                    return dbConfig.ConnectionString;
+                }
+            }
+
+            throw new Exception($"未找到数据库配置：{name}");
         }
 
         public static List<AlarmRule> GetAlarmRules()
@@ -77,9 +94,35 @@ namespace opc_ae_relay.config
 
     public class DatabaseConfig
     {
-        [XmlAttribute("name")] public string Name { get; set; }
+        /// <summary>
+        /// 数据库实例名称，用于日志标识和多实例区分
+        /// </summary>
+        [XmlAttribute("name")]
+        public string Name { get; set; }
 
-        [XmlAttribute("connectionString")] public string ConnectionString { get; set; }
+        /// <summary>
+        /// 数据库类型标识（如 sqlserver, mysql），决定工厂创建哪种 Provider 实例
+        /// </summary>
+        [XmlAttribute("type")]
+        public string Type { get; set; } = "sqlserver";
+
+        /// <summary>
+        /// 是否启用该数据库实例，默认启用；设为 false 则启动时跳过初始化
+        /// </summary>
+        [XmlAttribute("enabled")]
+        public bool Enabled { get; set; } = true;
+
+        /// <summary>
+        /// 连接字符串
+        /// </summary>
+        [XmlAttribute("connectionString")]
+        public string ConnectionString { get; set; }
+
+        /// <summary>
+        /// 是否为默认数据库，用于兼容旧版 DBUtil.GetConnection() 无参调用
+        /// </summary>
+        [XmlAttribute("isDefault")]
+        public bool IsDefault { get; set; } = false;
     }
 
     /// <summary>

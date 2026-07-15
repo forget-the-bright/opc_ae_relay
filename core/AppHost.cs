@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using opc_ae_relay.config;
+using opc_ae_relay.db;
 using opc_ae_relay.mq;
 using Serilog;
 
@@ -15,16 +16,16 @@ namespace opc_ae_relay.core
             try
             {
                 Config.initAll();
-
                 Log.Information("==========================================");
-                Log.Information("   Yokogawa OPC UA AE 采集服务 启动中...  ");
+                Log.Information("       通用 OPC UA AE 采集服务 启动中...    ");
                 Log.Information("==========================================");
 
-                OpcAeClientRun.runOPC();
-                OpcAeClientRun.StartOpcWatchDog();
+                // 初始化数据库管理器
                 WebConfig.Start();
-
+                DbManager.Init();
                 MqManager.InitAsync().GetAwaiter().GetResult();
+                OpcAeClientRun.runOPC(isRunWatchDog: true);
+
 
                 Console.CancelKeyPress += OnShutdown;
                 AppDomain.CurrentDomain.ProcessExit += OnShutdown;
@@ -33,9 +34,11 @@ namespace opc_ae_relay.core
                 ShutdownEvent.WaitOne();
 
                 Log.Information("正在关闭服务...");
-                WebConfig.Stop();
                 OpcAeClientRun.StopAll();
                 MqManager.ShutdownAsync().GetAwaiter().GetResult();
+                DbManager.Shutdown();
+                WebConfig.Stop();
+
                 Log.Information("服务已安全退出");
             }
             catch (Exception ex)

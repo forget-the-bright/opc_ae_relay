@@ -34,6 +34,17 @@ namespace opc_ae_relay.config
                     outputTemplate:
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"
                 )
+
+                // 异常日志：只记录 Error 及以上级别，输出到 ErrorLog 目录
+                .WriteTo.File(
+                    "./ErrorLog/error-.log",
+                    restrictedToMinimumLevel: LogEventLevel.Error,
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: null,
+                    retainedFileTimeLimit: TimeSpan.FromDays(30),
+                    outputTemplate:
+                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"
+                )
                 .WriteTo.Sink(new InMemoryLogSink())
                 .CreateLogger();
         }

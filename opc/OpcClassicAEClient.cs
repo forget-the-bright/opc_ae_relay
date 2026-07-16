@@ -7,6 +7,7 @@ using opc_ae_relay.mq;
 using opc_ae_relay.util;
 using Opc.UaFx;
 using Opc.UaFx.Client;
+using Serilog;
 
 namespace opc_ae_relay.opc;
 
@@ -48,15 +49,15 @@ public class OpcClassicAEClient : IDisposable
     {
         try
         {
-            Log("正在连接服务器...");
+            LogInfo("正在连接服务器...");
             _client.Connect();
             IsConnected = true;
-            Log("连接成功！");
+            LogInfo("连接成功！");
             return true;
         }
         catch (Exception ex)
         {
-            Log("连接失败: " + ex.Message);
+            LogInfo("连接失败: " + ex.Message);
             return false;
         }
     }
@@ -69,7 +70,7 @@ public class OpcClassicAEClient : IDisposable
             _eventSubscription = null;
             _client.Disconnect();
             IsConnected = false;
-            Log("已断开连接");
+            LogInfo("已断开连接");
         }
     }
 
@@ -111,11 +112,11 @@ public class OpcClassicAEClient : IDisposable
         {
             var aeNode = _client.BrowseNode(_aeNodeId);
             CollectAlarmSources(aeNode, sources, new HashSet<string>());
-            Log(string.Format("找到 {0} 个报警源", sources.Count));
+            LogInfo(string.Format("找到 {0} 个报警源", sources.Count));
         }
         catch (Exception ex)
         {
-            Log("获取报警源失败: " + ex.Message);
+            LogInfo("获取报警源失败: " + ex.Message);
         }
 
         return sources;
@@ -133,11 +134,11 @@ public class OpcClassicAEClient : IDisposable
         {
             var aeNode = _client.BrowseNode(_aeNodeId);
             CollectConditions(aeNode, conditions, new HashSet<string>());
-            Log(string.Format("找到 {0} 个报警条件", conditions.Count));
+            LogInfo(string.Format("找到 {0} 个报警条件", conditions.Count));
         }
         catch (Exception ex)
         {
-            Log("获取报警条件失败: " + ex.Message);
+            LogInfo("获取报警条件失败: " + ex.Message);
         }
 
         return conditions;
@@ -170,12 +171,12 @@ public class OpcClassicAEClient : IDisposable
                 HandleOpcEvent
             );
 
-            Log("报警订阅成功！等待报警事件...");
+            LogInfo("报警订阅成功！等待报警事件...");
             return true;
         }
         catch (Exception ex)
         {
-            Log("报警订阅失败: " + ex.Message);
+            LogInfo("报警订阅失败: " + ex.Message);
             return false;
         }
     }
@@ -193,7 +194,7 @@ public class OpcClassicAEClient : IDisposable
         }
         catch (Exception ex)
         {
-            Log(string.Format("读取节点值失败 [{0}]: {1}", nodeId, ex.Message));
+            LogInfo(string.Format("读取节点值失败 [{0}]: {1}", nodeId, ex.Message));
             return null;
         }
     }
@@ -204,7 +205,7 @@ public class OpcClassicAEClient : IDisposable
     {
         if (!IsConnected)
         {
-            Log("未连接，请先调用 Connect()");
+            LogInfo("未连接，请先调用 Connect()");
             return false;
         }
 
@@ -224,9 +225,9 @@ public class OpcClassicAEClient : IDisposable
             // 3. 获取所有原始值（仅调试，丢失字段名）
             // object[] allVals = opcEvent.GetAllDataStoreValues();
             //string result = OpcEventDataStoreHelper.FormatObjectArray(allVals);
-            // Log($"[OPC-AE-{_host}]- {result}");
+            // LogInfo($"[OPC-AE-{_host}]- {result}");
             //string log = $"Time={opcEvent.Time},SourceNodeId={opcEvent.SourceNodeId},SourceName={opcEvent.SourceName},Severity={(ushort)opcEvent.Severity},ReceiveTime={opcEvent.ReceiveTime},NodeId={opcEvent.NodeId},Msg={opcEvent.Message},EventTypeId={opcEvent.EventTypeId},EventType={opcEvent.EventType},EventId={ConvertByteString(opcEvent.EventId)}";
-            // Log($"[OPC-AE-{_host}]- {log}");
+            // LogInfo($"[OPC-AE-{_host}]- {log}");
             // 反射获取OpcEvent所有公开属性名
             var alarmData = new AlarmEventData
             {
@@ -248,7 +249,7 @@ public class OpcClassicAEClient : IDisposable
                 return; // 标签不在过滤表中，跳过
             }
             var alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
-            alarmData.ConditionName = alarmInfo.MatchedRule.Code;
+            alarmData.ConditionName = alarmInfo.MatchedRule?.Code ?? "";
             alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";
             alarmData.MatchedRuleEventType = alarmInfo.MatchedRule?.EventType ?? "";
             alarmData.MatchedRuleDescription = alarmInfo.MatchedRule?.Description ?? "";
@@ -271,11 +272,11 @@ public class OpcClassicAEClient : IDisposable
                 MqManager.SendAlarmAsync(mqMsg).ContinueWith(t =>
                 {
                     if (t.IsFaulted)
-                        Log($"MQ 发送失败: {t.Exception?.GetBaseException().Message}");
+                        LogInfo($"MQ 发送失败: {t.Exception?.GetBaseException().Message}");
                 });
             }
 
-            Log(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}] - [{7}]]",
+            LogInfo(string.Format("[OPC-AE-{0}] - [事件类型:{1}] [来源:{2}] - [消息:{3}] - [{4}] - [{5}] - [{6}] - [{7}]]",
                 _host,
                 opcEvent.EventType,
                 alarmData.SourceName,
@@ -290,13 +291,13 @@ public class OpcClassicAEClient : IDisposable
             // 用下面的判断
             /*                if (opcEvent.EventType == OpcEventType.AlarmCondition)
                             {
-                                Log(string.Format("[报警] [来源:{0}] - [消息:{1}]", alarmData.SourceName, alarmData.Message));
+                                LogInfo(string.Format("[报警] [来源:{0}] - [消息:{1}]", alarmData.SourceName, alarmData.Message));
                                 if (OnAlarmReceived != null) OnAlarmReceived(alarmData);
                             }
                             else
                             {
 
-                                Log(string.Format("[事件] [类型:{0}] [来源:{1}] - [消息:{2} | {3} | {4} | {5} | {6}]", opcEvent.EventType, alarmData.SourceName,
+                                LogInfo(string.Format("[事件] [类型:{0}] [来源:{1}] - [消息:{2} | {3} | {4} | {5} | {6}]", opcEvent.EventType, alarmData.SourceName,
                                     alarmInfo.TagName,
                                     alarmInfo.FieldType,
                                     alarmInfo.Value,
@@ -311,7 +312,8 @@ public class OpcClassicAEClient : IDisposable
         }
         catch (Exception ex)
         {
-            Log($"处理事件出错: {ex.Message} {message}");
+            
+            LogError(ex, $"处理事件出错: {ex.Message} - {message}");
         }
     }
 
@@ -449,10 +451,15 @@ public class OpcClassicAEClient : IDisposable
         }
     }
 
-    private void Log(string message)
+    private void LogInfo(string message)
     {
         var logMessage = string.Format("[{0:HH:mm:ss.fff}] {1}", DateTime.Now, message);
         //Console.WriteLine(logMessage);
         if (OnLog != null) OnLog(message);
+    }
+    private void LogError(Exception ex,string message)
+    {
+        var logMessage = string.Format("[{0:HH:mm:ss.fff}] {1}", DateTime.Now, message);
+        Log.Error(ex, logMessage);
     }
 }

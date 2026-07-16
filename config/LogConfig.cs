@@ -37,7 +37,7 @@ namespace opc_ae_relay.config
 
                 // 异常日志：只记录 Error 及以上级别，输出到 ErrorLog 目录
                 .WriteTo.File(
-                    "./ErrorLog/error-.log",
+                    "./logs/error-.log",
                     restrictedToMinimumLevel: LogEventLevel.Error,
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: null,

@@ -214,8 +214,6 @@ public class OpcClassicAEClient : IDisposable
 
     private void HandleOpcEvent(object sender, OpcEventReceivedEventArgs e)
     {
-
-
         var message = "";
         try
         {
@@ -248,6 +246,7 @@ public class OpcClassicAEClient : IDisposable
             {
                 return; // 标签不在过滤表中，跳过
             }
+
             var alarmInfo = AlarmInfo.ParseAlarm(alarmData.Message, alarmData.EventTypeId);
             alarmData.ConditionName = alarmInfo.MatchedRule?.Code ?? "";
             alarmData.MatchedRuleName = alarmInfo.MatchedRule?.Name ?? "";
@@ -263,6 +262,7 @@ public class OpcClassicAEClient : IDisposable
                     Console.Write($"Alarm {alarm.ConditionName} is {alarmData.SourceName} ");
                     Console.WriteLine($"{(alarm.IsActive ? "active" : "inactive")}!");
                 }
+
 
             var idObject = DBUtil.ExecuteScalar(AlarmEventData.getInsertSql(), alarmData);
 
@@ -312,7 +312,6 @@ public class OpcClassicAEClient : IDisposable
         }
         catch (Exception ex)
         {
-            
             LogError(ex, $"处理事件出错: {ex.Message} - {message}");
         }
     }
@@ -457,7 +456,8 @@ public class OpcClassicAEClient : IDisposable
         //Console.WriteLine(logMessage);
         if (OnLog != null) OnLog(message);
     }
-    private void LogError(Exception ex,string message)
+
+    private void LogError(Exception ex, string message)
     {
         var logMessage = string.Format("[{0:HH:mm:ss.fff}] {1}", DateTime.Now, message);
         Log.Error(ex, logMessage);

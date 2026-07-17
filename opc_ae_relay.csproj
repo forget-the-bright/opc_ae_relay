@@ -398,6 +398,7 @@
     <Content Include="application.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="OPC DA_AE DCOM 完整配置原理+避坑手册（客户端+服务端）.md" />
     <Content Include="publish_release.ps1" />
     <Content Include="RunApp.md" />
     <Content Include="tagFilter.xlsx" >

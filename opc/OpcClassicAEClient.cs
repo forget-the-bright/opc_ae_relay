@@ -1,13 +1,14 @@
+using Opc.UaFx;
+using Opc.UaFx.Classic;
+using Opc.UaFx.Client;
+using opc_ae_relay.config;
+using opc_ae_relay.mq;
+using opc_ae_relay.util;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using opc_ae_relay.config;
-using opc_ae_relay.mq;
-using opc_ae_relay.util;
-using Opc.UaFx;
-using Opc.UaFx.Client;
-using Serilog;
 
 namespace opc_ae_relay.opc;
 
@@ -26,6 +27,62 @@ public class OpcClassicAEClient : IDisposable
     {
         _serverUrl = serverUrl;
         _client = new OpcClient(_serverUrl);
+        #region ===================== DCOM核心修复配置（专门解决8/15机器OPC AE告警不回调 =====================
+        // 【参数1：DCOM认证等级 AuthenticationLevel】
+        // 对应底层RPC_C_AUTHN_LEVEL，控制远程DCOM调用身份校验/加密强度
+        // 可选枚举：None(无校验)/Connect/Call/Packet/PacketIntegrity/PacketPrivacy
+        // 设置None = 完全关闭DCOM身份加密校验，规避Win10/11新系统严格安全拦截
+        // 问题根源：8/15系统默认高等级校验，横河OPC2服务端回调会被Windows静默丢弃
+        _client.Security.AuthenticationLevel = OpcClassicAuthenticationLevel.None;
+
+        // 【参数2：DCOM模拟等级 ImpersonationLevel】
+        // 控制OPC服务端回调时，能获取客户端身份的权限范围
+        // 可选：Anonymous(无身份)/Identify(仅读取身份)/Impersonate(冒充操作)/Delegate(全权代理)
+        // 选Identify：最低权限，仅允许服务端读取当前程序身份，不会触发系统权限拦截日志(10016)
+        // 高Impersonate级别在8/15加固系统会直接禁止回调
+        _client.Security.ImpersonationLevel = OpcClassicImpersonationLevel.Identify;
+
+        // 【参数3：DCOM认证服务 AuthenticationService】
+        // 指定Windows安全协议包，远程跨机器DCOM统一用WinNt(NTLM)
+        // 可选：None / WinNt / SChannel(TLS加密，本地进程才用)
+        // 横河远程OPC Classic AE必须WinNt，无需修改
+        _client.Security.AuthenticationService = OpcClassicAuthenticationService.WinNt;
+
+        // 【参数4：DCOM授权服务 AuthorizationService】
+        // DCOM自定义授权校验开关，None=关闭额外授权校验
+        // 可选：None / Dcom
+        // 老式OPC AE无自定义授权逻辑，开启Dcom会增加校验步骤，容易拦截回调，固定None
+        _client.Security.AuthorizationService = OpcClassicAuthorizationService.None;
+
+        // 【参数5：DCOM代理能力 ProxyCapabilities】
+        // DCOM RPC附加安全标记，MutualAuth/双向认证等开启会增强校验
+        // None = 关闭所有额外DCOM安全校验标记，最大程度兼容老OPC服务
+        _client.Security.ProxyCapabilities = OpcClassicProxyCapabilities.None;
+        #endregion
+
+        #region ===================== 下方全部为OPC UA(TCP)参数，你的opc.com DCOM场景完全不生效 =====================
+        // AutoUpgradeEndpointPolicy：UA端点策略自动升级
+        // 仅opc.tcp UA连接生效；DCOM桥接OPC Classic无UA端点，不影响，设false关闭自动适配
+        _client.Security.AutoUpgradeEndpointPolicy = false;
+        // 关闭证书校验干扰（OPC Classic不需要UA证书）
+        _client.Security.AutoAcceptUntrustedCertificates = true;
+        // UseOnlySecureEndpoints：UA仅使用加密安全端点
+        // 只控制UA opc.tcp协议，横河DCOM OPC AE不涉及UA加密端点，关闭限制
+        _client.Security.UseOnlySecureEndpoints = false;
+
+
+        // EndpointPolicy：自定义UA安全策略（签名/加密规则）
+        // 仅UA TCP使用，DCOM模式无需配置，保持null即可，这里不赋值
+
+        // UseHighLevelEndpoint：自动选择安全等级最高UA端点
+        // UA专用，DCOM桥接OPC Classic无效，无需启用
+
+        // UserIdentity：UA用户名/证书登录身份
+        // 横河OPC Classic(DCOM)靠Windows账号认证，不用UA账号体系，无需设置
+
+        // VerifyServersCertificateDomains：校验UA服务证书域名
+        // DCOM OPC无UA证书机制，完全不生效，默认false不用改
+        #endregion
         _host = host;
         _aeNodeId = OpcObjectTypes.Server;
         IsConnected = false;

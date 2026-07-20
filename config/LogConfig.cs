@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Concurrent;
+using System;
 using System.IO;
 using System.Text;
+using opc_ae_relay.web;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -48,15 +48,10 @@ namespace opc_ae_relay.config
                     outputTemplate:
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"
                 )
-                .WriteTo.Sink(new InMemoryLogSink( "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"))
+                .WriteTo.Sink(new InMemoryLogSink(
+                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"))
                 .CreateLogger();
         }
-    }
-
-    public static class LogBuffer
-    {
-        public static readonly ConcurrentQueue<string> Queue = new ConcurrentQueue<string>();
-        public static int MaxCount = 100;
     }
 
     public class InMemoryLogSink : ILogEventSink
@@ -71,22 +66,16 @@ namespace opc_ae_relay.config
 
         public void Emit(LogEvent logEvent)
         {
-            // 先筛选消息（避免不必要的字符串拼接）
-            var shortMsg = logEvent.RenderMessage();
- 
-
             // 渲染成和控制台完全一样的完整日志文本
             var sb = new StringBuilder();
             using (var sw = new StringWriter(sb))
             {
                 _formatter.Format(logEvent, sw);
             }
+
             string fullLog = sb.ToString().TrimEnd();
-            if (!fullLog.Contains("OPC-AE-")) return;
-            // 存入队列
-            LogBuffer.Queue.Enqueue(fullLog);
-            while (LogBuffer.Queue.Count > LogBuffer.MaxCount)
-                LogBuffer.Queue.TryDequeue(out _);
+            // WebSocket 实时推送
+            LogBroadcaster.Push(fullLog);
         }
     }
 }

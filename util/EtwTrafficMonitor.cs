@@ -11,6 +11,7 @@ using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
+using opc_ae_relay.config;
 using Serilog;
 
 namespace opc_ae_relay.util;
@@ -38,7 +39,9 @@ public sealed class EtwTrafficMonitor : IDisposable
 
     public static EtwTrafficMonitor Instance { get; } = new EtwTrafficMonitor();
 
-    private EtwTrafficMonitor() { }
+    private EtwTrafficMonitor()
+    {
+    }
 
     public bool IsRunning => _running;
     public bool PermissionDenied => _permissionDenied;
@@ -74,7 +77,10 @@ public sealed class EtwTrafficMonitor : IDisposable
 
             _processTask = Task.Factory.StartNew(() =>
             {
-                try { _source.Process(); }
+                try
+                {
+                    _source.Process();
+                }
                 catch (Exception ex)
                 {
                     if (_running)
@@ -103,8 +109,25 @@ public sealed class EtwTrafficMonitor : IDisposable
         if (!_running && _session == null) return;
         _running = false;
 
-        try { _source?.StopProcessing(); _source?.Dispose(); _source = null; } catch { }
-        try { _session?.Stop(); _session?.Dispose(); _session = null; } catch { }
+        try
+        {
+            _source?.StopProcessing();
+            _source?.Dispose();
+            _source = null;
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            _session?.Stop();
+            _session?.Dispose();
+            _session = null;
+        }
+        catch
+        {
+        }
 
         Log.Information("[ETW] 网络流量监控已停止");
     }
@@ -124,7 +147,13 @@ public sealed class EtwTrafficMonitor : IDisposable
         foreach (var kv in _connections)
         {
             var c = kv.Value;
-            if ( c.BytesIn == 0 &&  c.BytesOut == 0 && c.State.Equals("CLOSED"))
+            if (c.BytesIn == 0 && c.BytesOut == 0 && c.State.Equals("CLOSED"))
+            {
+                continue;
+            }
+
+            var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
+            if (opcServerConfig != null && c.State.Equals("CLOSED"))
             {
                 continue;
             }
@@ -142,6 +171,7 @@ public sealed class EtwTrafficMonitor : IDisposable
                 BytesOut = c.BytesOut
             });
         }
+
         var sortedList = list
             // 1. 先按远程 IP 分组排序（相同 IP 放一起）
             .OrderBy(x => x.RemoteIp)
@@ -177,7 +207,9 @@ public sealed class EtwTrafficMonitor : IDisposable
             if (data.size > 0)
                 Interlocked.Add(ref conn._bytesOut, data.size);
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private void OnTcpIpRecv(TcpIpTraceData data)
@@ -191,7 +223,9 @@ public sealed class EtwTrafficMonitor : IDisposable
             if (data.size > 0)
                 Interlocked.Add(ref conn._bytesIn, data.size);
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private void OnTcpIpConnect(TcpIpConnectTraceData data)
@@ -204,7 +238,9 @@ public sealed class EtwTrafficMonitor : IDisposable
                 data.daddr.ToString(), data.dport);
             conn.State = "ESTABLISHED";
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private void OnTcpIpDisconnect(TcpIpTraceData data)
@@ -218,7 +254,9 @@ public sealed class EtwTrafficMonitor : IDisposable
             if (_connections.TryGetValue(key, out var conn))
                 conn.State = "CLOSED";
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     /// <summary>
@@ -231,13 +269,17 @@ public sealed class EtwTrafficMonitor : IDisposable
 
         if (IsLocalAddress(addr1))
         {
-            localIp = addr1; localPort = port1;
-            remoteIp = addr2; remotePort = port2;
+            localIp = addr1;
+            localPort = port1;
+            remoteIp = addr2;
+            remotePort = port2;
         }
         else
         {
-            localIp = addr2; localPort = port2;
-            remoteIp = addr1; remotePort = port1;
+            localIp = addr2;
+            localPort = port2;
+            remoteIp = addr1;
+            remotePort = port1;
         }
 
         string key = $"{localIp}:{localPort}-{remoteIp}:{remotePort}";
@@ -281,7 +323,10 @@ public sealed class EtwTrafficMonitor : IDisposable
                 }
             }
         }
-        catch { }
+        catch
+        {
+        }
+
         return ips;
     }
 
@@ -297,7 +342,9 @@ public sealed class EtwTrafficMonitor : IDisposable
                 Thread.Sleep(200);
             }
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     #endregion

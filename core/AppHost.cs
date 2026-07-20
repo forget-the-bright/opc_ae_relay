@@ -4,6 +4,7 @@ using opc_ae_relay.config;
 using opc_ae_relay.db;
 using opc_ae_relay.mq;
 using opc_ae_relay.util;
+using opc_ae_relay.web;
 using Serilog;
 
 namespace opc_ae_relay.core
@@ -24,7 +25,7 @@ namespace opc_ae_relay.core
                 // 顺序初始化 配置监听服务 web服务 数据库服务 消息队列服务 opc核心管理服务
                 Config.InitAll();
                 EtwTrafficMonitor.Instance.Start();
-                WebConfig.Start();
+                EmbedIoWebServer.Start();
                 DbManager.Init();
                 MqManager.InitAsync().GetAwaiter().GetResult();
                 OpcAeClientRun.runOPC(isRunWatchDog: true);
@@ -42,7 +43,7 @@ namespace opc_ae_relay.core
                 OpcAeClientRun.StopAll();
                 MqManager.ShutdownAsync().GetAwaiter().GetResult();
                 DbManager.Shutdown();
-                WebConfig.Stop();
+                EmbedIoWebServer.Stop();
                 EtwTrafficMonitor.Instance.Dispose();
 
                 Log.Information("服务已安全退出");

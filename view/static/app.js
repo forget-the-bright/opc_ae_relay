@@ -11,21 +11,22 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
-// ==================== 日志模块（智能滚动） ====================
+// ==================== 日志模块（WebSocket 实时推送） ====================
 const logContainer = document.getElementById('log-container');
-let userScrolledUp = false; // 用户是否手动上滚
+const wsStatusEl = document.getElementById('ws-status');
+let userScrolledUp = false;
+let ws = null;
+let wsReconnectTimer = null;
 
 // 监听滚动事件，判断用户是否在底部
 logContainer.addEventListener('scroll', () => {
-    const threshold = 30; // 距底部 30px 以内视为"在底部"
+    const threshold = 30;
     const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < threshold;
     userScrolledUp = !atBottom;
-    // 控制"回到底部"按钮显隐
     const btn = document.getElementById('scroll-bottom-btn');
     if (btn) btn.style.display = userScrolledUp ? 'block' : 'none';
 });
 
-// 点击"回到底部"按钮
 function scrollToBottom() {
     logContainer.scrollTop = logContainer.scrollHeight;
     userScrolledUp = false;
@@ -33,31 +34,63 @@ function scrollToBottom() {
     if (btn) btn.style.display = 'none';
 }
 
-// 加载日志
-function fetchLogs() {
-    fetch('/api/logs')
-        .then(res => res.json())
-        .then(logs => {
-            if (logs.length === 0) return;
-            logs.forEach(line => {
-                const div = document.createElement('div');
-                div.className = 'log-item';
-                div.textContent = line;
-                logContainer.appendChild(div);
-            });
-            // 限制最多 200 条
-            while (logContainer.children.length > 200) {
-                logContainer.removeChild(logContainer.firstChild);
-            }
-            // 只有用户在底部时才自动滚动，查看历史时不打断
-            if (!userScrolledUp) {
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
-        });
+function appendLog(line) {
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.textContent = line;
+    logContainer.appendChild(div);
+    // 限制最多 200 条
+    while (logContainer.children.length > 200) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+    if (!userScrolledUp) {
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
 }
 
-setInterval(fetchLogs, 2000);
-fetchLogs();
+function updateWsStatus(connected) {
+    if (!wsStatusEl) return;
+    if (connected) {
+        wsStatusEl.textContent = '已连接';
+        wsStatusEl.className = 'ws-badge ws-connected';
+    } else {
+        wsStatusEl.textContent = '已断开';
+        wsStatusEl.className = 'ws-badge ws-disconnected';
+    }
+}
+
+function connectLogWs() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws/logs`;
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        console.log('[WS] 日志连接已建立');
+        updateWsStatus(true);
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
+        }
+    };
+
+    ws.onmessage = (event) => {
+        appendLog(event.data);
+    };
+
+    ws.onclose = () => {
+        console.log('[WS] 日志连接已断开，3秒后重连...');
+        updateWsStatus(false);
+        wsReconnectTimer = setTimeout(connectLogWs, 3000);
+    };
+
+    ws.onerror = (err) => {
+        console.error('[WS] 日志连接错误:', err);
+        ws.close();
+    };
+}
+
+connectLogWs();
 
 // ==================== 性能监控模块 ====================
 function fetchPerformance() {
@@ -79,7 +112,6 @@ function fetchPerformance() {
             // 网络（本进程）
             setText('perf-net-total', data.network.total);
             setText('perf-net-established', data.network.established);
-            //setText('perf-net-listening', data.network.listening);
             // Web 应用层流量（累计）
             if (data.network.webTraffic) {
                 setText('perf-web-in', data.network.webTraffic.bytesInStr);
@@ -102,7 +134,8 @@ function fetchPerformance() {
                 tbody.innerHTML = '';
                 (data.network.connections || []).forEach(c => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${c.local}</td><td>${c.remote}</td><td><span class="conn-state state-${c.state.toLowerCase()}">${c.state}</span></td><td class="traffic-cell">${c.bytesInStr}</td><td class="traffic-cell">${c.bytesOutStr}</td>`;
+                    const state = c.state || 'UNKNOWN';
+                    tr.innerHTML = `<td>${c.local}</td><td>${c.remote}</td><td><span class="conn-state state-${state.toLowerCase()}">${state}</span></td><td class="traffic-cell">${c.bytesInStr}</td><td class="traffic-cell">${c.bytesOutStr}</td>`;
                     tbody.appendChild(tr);
                 });
             }

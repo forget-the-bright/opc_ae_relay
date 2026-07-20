@@ -286,3 +286,24 @@ body {
     color: #555;
     white-space: nowrap;
 }
+
+/* WebSocket 状态徽章 */
+.ws-badge {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: normal;
+    vertical-align: middle;
+}
+
+.ws-badge.ws-connected {
+    background: #f6ffed;
+    color: #52c41a;
+}
+
+.ws-badge.ws-disconnected {
+    background: #fff2f0;
+    color: #ff4d4f;
+}

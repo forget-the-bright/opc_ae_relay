@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -52,8 +52,49 @@
 
         <!-- 日志模块 -->
         <section class="log-panel">
-            <h2>实时日志（最近 100 条）</h2>
+            <h2>实时日志（最近 200 条）</h2>
             <div class="log-container" id="log-container"></div>
+            <button id="scroll-bottom-btn" class="scroll-bottom-btn" onclick="scrollToBottom()" style="display:none;">↓ 回到底部</button>
+        </section>
+
+        <!-- 性能监控面板 -->
+        <section class="perf-panel">
+            <h2>程序性能监控</h2>
+            <div class="perf-grid">
+                <div class="perf-card">
+                    <h3>内存 / 资源</h3>
+                    <div class="perf-item"><label>工作集内存:</label><span id="perf-memory">--</span></div>
+                    <div class="perf-item"><label>专用内存【程序独占的物理内存-不包含共享库】:</label><span id="perf-private">--</span></div>
+                    <div class="perf-item"><label>GC 托管堆 【实际程序申请的内存】:</label><span id="perf-gc-heap">--</span></div>
+                    <div class="perf-item"><label>GC Gen0 次数:</label><span id="perf-gc-gen0">--</span></div>
+                    <div class="perf-item"><label>GC Gen1 次数:</label><span id="perf-gc-gen1">--</span></div>
+                    <div class="perf-item"><label>GC Gen2 次数:</label><span id="perf-gc-gen2">--</span></div>
+                    <div class="perf-item"><label>句柄数:</label><span id="perf-handles">--</span></div>
+                </div>
+                <div class="perf-card">
+                    <h3>CPU / 线程</h3>
+                    <div class="perf-item"><label>CPU 使用率:</label><span id="perf-cpu">--</span></div>
+                    <div class="perf-item"><label>活跃线程数:</label><span id="perf-threads">--</span></div>
+                    <div class="perf-item"><label>运行时长:</label><span id="perf-uptime">--</span></div>
+                </div>
+                <div class="perf-card">
+                    <h3>网络（本进程）</h3>
+                    <div class="perf-item"><label>连接总数:</label><span id="perf-net-total">--</span></div>
+                    <div class="perf-item"><label>已建立:</label><span id="perf-net-established">--</span></div>
+                    <!--   <div class="perf-item"><label>监听中:</label><span id="perf-net-listening">--</span></div>-->
+                     <div class="perf-item"><label>Web 接收(累计):</label><span id="perf-web-in">--</span></div>
+                     <div class="perf-item"><label>Web 发送(累计):</label><span id="perf-web-out">--</span></div>
+                     <div class="perf-item"><label>Web 请求数:</label><span id="perf-web-reqs">--</span></div>
+                 </div>
+             </div>
+             <!-- 连接明细表 -->
+            <p id="traffic-hint" style="display:none; margin-top:10px; font-size:12px; color:#faad14;"></p>
+            <div class="conn-table-wrap">
+                <table class="conn-table" id="conn-table">
+                    <thead><tr><th>本地地址</th><th>远程地址</th><th>状态</th><th>接收</th><th>发送</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
     </main>
 </div>

@@ -43,6 +43,7 @@ namespace opc_ae_relay.discoverServer
             {
                 using (var discoveryClient = new OpcClassicDiscoveryClient(host))
                 {
+                    
                     // 1. 手动初始化 OPC AE 接口（AE1.0 + AE2.0）
                     var ae10Interface = OpcClassicInterfaces.Ae10;
                     var servers = discoveryClient.DiscoverServers(ae10Interface);

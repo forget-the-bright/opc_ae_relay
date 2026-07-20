@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.IO;
+using System.Text;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Formatting.Display;
 
 namespace opc_ae_relay.config
 {
@@ -45,7 +48,7 @@ namespace opc_ae_relay.config
                     outputTemplate:
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"
                 )
-                .WriteTo.Sink(new InMemoryLogSink())
+                .WriteTo.Sink(new InMemoryLogSink( "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [T:{ThreadName}({ThreadId})]  [{Level:u4}] {Message:lj}{NewLine}{Exception}"))
                 .CreateLogger();
         }
     }
@@ -58,15 +61,32 @@ namespace opc_ae_relay.config
 
     public class InMemoryLogSink : ILogEventSink
     {
+        private readonly MessageTemplateTextFormatter _formatter;
+
+        public InMemoryLogSink(string OutputTemplate)
+        {
+            // 复用和 ConsoleSink 完全相同的格式化器
+            _formatter = new MessageTemplateTextFormatter(OutputTemplate);
+        }
+
         public void Emit(LogEvent logEvent)
         {
-            var log = logEvent.RenderMessage();
-            if (log.Contains("OPC-AE-"))
-            {
-                LogBuffer.Queue.Enqueue(log);
+            // 先筛选消息（避免不必要的字符串拼接）
+            var shortMsg = logEvent.RenderMessage();
+ 
 
-                while (LogBuffer.Queue.Count > LogBuffer.MaxCount) LogBuffer.Queue.TryDequeue(out _);
+            // 渲染成和控制台完全一样的完整日志文本
+            var sb = new StringBuilder();
+            using (var sw = new StringWriter(sb))
+            {
+                _formatter.Format(logEvent, sw);
             }
+            string fullLog = sb.ToString().TrimEnd();
+            if (!fullLog.Contains("OPC-AE-")) return;
+            // 存入队列
+            LogBuffer.Queue.Enqueue(fullLog);
+            while (LogBuffer.Queue.Count > LogBuffer.MaxCount)
+                LogBuffer.Queue.TryDequeue(out _);
         }
     }
 }

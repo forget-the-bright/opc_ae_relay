@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using EmbedIO.WebSockets;
 using Serilog;
@@ -9,10 +12,15 @@ namespace opc_ae_relay.web;
 #region WebSocket 日志模块
 
 /// <summary>
-/// WebSocket 日志推送模块，客户端连接后实时接收日志
+/// WebSocket 日志推送模块，客户端连接后实时接收日志。
+/// 首次连接的新客户端会收到最近 200 条历史日志。
 /// </summary>
 public class LogWebSocketModule : WebSocketModule
 {
+    private const int MaxHistory = 200;
+    private static readonly ConcurrentQueue<string> LogBuffer = new ConcurrentQueue<string>();
+    private static readonly ConcurrentDictionary<string, byte> SeenClients = new ConcurrentDictionary<string, byte>();
+
     public LogWebSocketModule(string urlPath) : base(urlPath, true)
     {
     }
@@ -23,13 +31,31 @@ public class LogWebSocketModule : WebSocketModule
     public Task BroadcastMessageAsync(string message)
     {
         WebTrafficCounter.AddResponse(Encoding.UTF8.GetByteCount(message));
+        EnqueueLog(message);
         return BroadcastAsync(message);
     }
 
-    protected override Task OnClientConnectedAsync(IWebSocketContext context)
+    private static void EnqueueLog(string message)
     {
-        Log.Debug("[WS] 日志客户端已连接: {Remote}", context.RequestUri);
-        return Task.CompletedTask;
+        LogBuffer.Enqueue(message);
+        while (LogBuffer.Count > MaxHistory && LogBuffer.TryDequeue(out _)) { }
+    }
+
+    protected override async Task OnClientConnectedAsync(IWebSocketContext context)
+    {
+        var clientId = GetQueryParam(context, "clientId");
+        Log.Debug("[WS] 日志客户端已连接: {Remote}, ClientId={ClientId}", context.RequestUri, clientId);
+
+        if (!string.IsNullOrEmpty(clientId) && SeenClients.TryAdd(clientId, 0))
+        {
+            var history = LogBuffer.ToArray();
+            foreach (var msg in history)
+            {
+                await SendAsync(context, msg);
+            }
+
+            Log.Debug("[WS] 已向新客户端推送 {Count} 条历史日志", history.Length);
+        }
     }
 
     protected override Task OnClientDisconnectedAsync(IWebSocketContext context)
@@ -41,8 +67,19 @@ public class LogWebSocketModule : WebSocketModule
     protected override Task OnMessageReceivedAsync(
         IWebSocketContext context, byte[] rxBuffer, IWebSocketReceiveResult rxResult)
     {
-        // 客户端无需发送消息，忽略
         return Task.CompletedTask;
+    }
+
+    private static string GetQueryParam(IWebSocketContext context, string key)
+    {
+        var query = context.RequestUri.Query;
+        if (string.IsNullOrEmpty(query)) return null;
+        return query.TrimStart('?')
+            .Split('&')
+            .Select(p => p.Split(new[] { '=' }, 2))
+            .Where(kv => kv.Length == 2 && kv[0] == key)
+            .Select(kv => Uri.UnescapeDataString(kv[1]))
+            .FirstOrDefault();
     }
 }
 

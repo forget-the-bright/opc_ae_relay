@@ -215,7 +215,7 @@ public sealed class EtwTrafficMonitor : IDisposable
         var groupRemote = list.GroupBy(x => (x.Remote, x.RemoteIp,x.RemotePort)).ToList();
         foreach (var tcpConnectionInfos in groupRemote)
         {
-            if (tcpConnectionInfos.Count() > 2)
+            if (tcpConnectionInfos.Count() > 1)
             {
                 var (remote, remoteIp, remotePort) = tcpConnectionInfos.Key;
                // if (IsLocalAddress(remoteIp)) 这里不好判断是不是本地的ip 因为可能部署到其他服务器啊。

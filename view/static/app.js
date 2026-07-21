@@ -61,7 +61,8 @@ function updateWsStatus(connected) {
 
 function connectLogWs() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}/ws/logs`;
+    const clientId = 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
+    const wsUrl = `${protocol}//${location.host}/ws/logs?clientId=${clientId}`;
 
     ws = new WebSocket(wsUrl);
 
@@ -81,7 +82,38 @@ function connectLogWs() {
     ws.onclose = () => {
         console.log('[WS] 日志连接已断开，3秒后重连...');
         updateWsStatus(false);
-        wsReconnectTimer = setTimeout(connectLogWs, 3000);
+        wsReconnectTimer = setTimeout(() => reconnectLogWs(clientId), 3000);
+    };
+
+    ws.onerror = (err) => {
+        console.error('[WS] 日志连接错误:', err);
+        ws.close();
+    };
+}
+
+function reconnectLogWs(clientId) {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws/logs?clientId=${clientId}`;
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        console.log('[WS] 日志重连已建立');
+        updateWsStatus(true);
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
+        }
+    };
+
+    ws.onmessage = (event) => {
+        appendLog(event.data);
+    };
+
+    ws.onclose = () => {
+        console.log('[WS] 日志连接已断开，3秒后重连...');
+        updateWsStatus(false);
+        wsReconnectTimer = setTimeout(() => reconnectLogWs(clientId), 3000);
     };
 
     ws.onerror = (err) => {

@@ -314,7 +314,7 @@ OpcAeClientRun.runOPC()   → OPC 采集线程 + 看门狗启动
 - AuthorizationService = None
 - ProxyCapabilities = None
 
-> 完整 DCOM 配置原理与避坑指南见项目内文档：`OPC DA_AE DCOM 完整配置原理+避坑手册（客户端+服务端）.md`
+> 完整 DCOM 配置原理与避坑指南见项目内文档：[OPC DA_AE DCOM 完整配置原理+避坑手册（客户端+服务端）.md](./OPC DA_AE DCOM 完整配置原理+避坑手册（客户端+服务端）.md)
 
 ## 开发说明
 

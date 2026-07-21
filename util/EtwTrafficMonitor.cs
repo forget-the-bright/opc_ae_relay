@@ -269,9 +269,10 @@ public sealed class EtwTrafficMonitor : IDisposable
 
         var sortedList = list
             // 1. 先按 ESTABLISHED 状态优先
-            .OrderBy(x => x.State == "ESTABLISHED")
+            .OrderByDescending(x => x.State == "ESTABLISHED")
             // 2. 再按远程 IP 分组排序（相同 IP 放一起）
-            .ThenByDescending(x => x.RemoteIp)
+            .ThenByDescending(x => IsLocalAddress(x.RemoteIp))
+            .ThenBy(x =>x.RemoteIp)    
             // 3. 再按接收量降序
             .ThenByDescending(x => x.BytesIn)
             // 4. 最后按发送量降序

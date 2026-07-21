@@ -39,8 +39,8 @@ function appendLog(line) {
     div.className = 'log-item';
     div.textContent = line;
     logContainer.appendChild(div);
-    // 限制最多 200 条
-    while (logContainer.children.length > 200) {
+    // 限制最多 500 条
+    while (logContainer.children.length > 500) {
         logContainer.removeChild(logContainer.firstChild);
     }
     if (!userScrolledUp) {

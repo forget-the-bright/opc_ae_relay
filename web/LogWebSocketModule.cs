@@ -17,7 +17,7 @@ namespace opc_ae_relay.web;
 /// </summary>
 public class LogWebSocketModule : WebSocketModule
 {
-    private const int MaxHistory = 200;
+    private const int MaxHistory = 500;
     private static readonly ConcurrentQueue<string> LogBuffer = new ConcurrentQueue<string>();
     private static readonly ConcurrentDictionary<string, byte> SeenClients = new ConcurrentDictionary<string, byte>();
 

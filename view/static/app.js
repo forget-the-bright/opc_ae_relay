@@ -167,7 +167,7 @@ function fetchPerformance() {
                 (data.network.connections || []).forEach(c => {
                     const tr = document.createElement('tr');
                     const state = c.state || 'UNKNOWN';
-                    tr.innerHTML = `<td>${c.local}</td><td>${c.remote}</td><td><span class="conn-state state-${state.toLowerCase()}">${state}</span></td><td class="traffic-cell">${c.bytesInStr}</td><td class="traffic-cell">${c.bytesOutStr}</td>`;
+                    tr.innerHTML = `<td>${c.local}</td><td>${c.remote}</td><td><span class="conn-state state-${state.toLowerCase()}">${state}</span></td><td class="traffic-cell">${c.bytesInStr}</td><td class="traffic-cell">${c.bytesOutStr}</td><td class="traffic-cell">${c.lastConnectTimeStr || '-'}</td><td class="traffic-cell">${c.lastCloseTimeStr || '-'}</td>`;
                     tbody.appendChild(tr);
                 });
             }
@@ -182,6 +182,38 @@ function setText(id, val) {
 
 setInterval(fetchPerformance, 5000);
 fetchPerformance();
+
+// ==================== 连接表格高度拖拽 ====================
+(function () {
+    const wrap = document.getElementById('conn-table-wrap');
+    const handle = document.getElementById('conn-table-resize-handle');
+    if (!wrap || !handle) return;
+
+    let startY = 0, startH = 0, dragging = false;
+
+    handle.addEventListener('mousedown', e => {
+        dragging = true;
+        startY = e.clientY;
+        startH = wrap.offsetHeight;
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const newH = Math.max(100, startH + (e.clientY - startY));
+        wrap.style.maxHeight = newH + 'px';
+        wrap.style.height = newH + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
+})();
 
 // ==================== OPC 状态轮询 ====================
 setInterval(async () => {

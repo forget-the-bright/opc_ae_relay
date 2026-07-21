@@ -29,6 +29,7 @@ public sealed class EtwTrafficMonitor : IDisposable
     private TraceEventSession _session;
     private ETWTraceEventSource _source;
     private Task _processTask;
+    private Timer _closeDetectTimer;
     private volatile bool _running;
     private volatile bool _started;
     private volatile bool _permissionDenied;
@@ -74,6 +75,9 @@ public sealed class EtwTrafficMonitor : IDisposable
             _source.Kernel.TcpIpConnect += OnTcpIpConnect;
             _source.Kernel.TcpIpDisconnect += OnTcpIpDisconnect;
 
+            // TraceEvent 未暴露 TcpIpClose 事件，通过定时轮询系统 TCP 表检测连接关闭
+            _closeDetectTimer = new Timer(_ => DetectClosedConnections(), null, 3000, 3000);
+
             _running = true;
 
             _processTask = Task.Factory.StartNew(() =>
@@ -112,6 +116,15 @@ public sealed class EtwTrafficMonitor : IDisposable
 
         try
         {
+            _closeDetectTimer?.Dispose();
+            _closeDetectTimer = null;
+        }
+        catch
+        {
+        }
+
+        try
+        {
             _source?.StopProcessing();
             _source?.Dispose();
             _source = null;
@@ -147,9 +160,9 @@ public sealed class EtwTrafficMonitor : IDisposable
         var list = new List<TcpConnectionInfo>();
         var applicationConfig = AppConfigLoader.Config;
         var applicationConfigWeb = applicationConfig.Web;
-        Dictionary<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp)>
+        Dictionary<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp, DateTime? lastConnect, DateTime? lastClose)>
             webCountBytesDict =
-                new Dictionary<string, (long, long, string, string)>();
+                new Dictionary<string, (long, long, string, string, DateTime?, DateTime?)>();
         foreach (var kv in _connections)
         {
             var c = kv.Value;
@@ -157,17 +170,17 @@ public sealed class EtwTrafficMonitor : IDisposable
             {
                 continue;
             }
-
-            var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
+            // 过滤掉已关闭的OPC服务器连接
+            /*var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
             if (opcServerConfig != null && c.State.Equals("CLOSED"))
             {
                 continue;
-            }
+            }*/
 
             if (c.LocalPort == applicationConfigWeb.Port)
             {
-                var (webCountBytesIn, webCountBytesOut, webState, localIp) = webCountBytesDict
-                    .GetOrAdd(c.RemoteIp, _ => (0, 0, "CLOSE", c.LocalIp));
+                var (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose) = webCountBytesDict
+                    .GetOrAdd(c.RemoteIp, _ => (0, 0, "CLOSE", c.LocalIp, (DateTime?)c.LastConnectTime, (DateTime?)c.LastCloseTime));
                 if (!webState.Equals("ESTABLISHED") && c.State.Equals("ESTABLISHED"))
                 {
                     webState = "ESTABLISHED";
@@ -175,7 +188,10 @@ public sealed class EtwTrafficMonitor : IDisposable
 
                 webCountBytesIn += c.BytesIn;
                 webCountBytesOut += c.BytesOut;
-                webCountBytesDict[c.RemoteIp] = (webCountBytesIn, webCountBytesOut, webState, localIp);
+                // 取最新的连接开始时间和关闭时间
+                if (c.LastConnectTime > lastConnect) lastConnect = c.LastConnectTime;
+                if (c.LastCloseTime > lastClose) lastClose = c.LastCloseTime;
+                webCountBytesDict[c.RemoteIp] = (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose);
                 continue;
             }
 
@@ -189,15 +205,18 @@ public sealed class EtwTrafficMonitor : IDisposable
                 RemotePort = $"{c.RemotePort}",
                 State = c.State,
                 BytesIn = c.BytesIn,
-                BytesOut = c.BytesOut
+                BytesOut = c.BytesOut,
+                LastConnectTime = c.LastConnectTime,
+                LastCloseTime = c.LastCloseTime
             });
         }
+
         // 统计 Web 服务器的流量
-        foreach (KeyValuePair<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp)>
+        foreach (KeyValuePair<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp, DateTime? lastConnect, DateTime? lastClose)>
                      keyValuePair in webCountBytesDict)
         {
             var RemoteIp = keyValuePair.Key;
-            var (webCountBytesIn, webCountBytesOut, webState, localIp) = keyValuePair.Value;
+            var (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose) = keyValuePair.Value;
             list.Add(new TcpConnectionInfo
             {
                 Local = $"{localIp}:{applicationConfigWeb.Port}",
@@ -208,20 +227,28 @@ public sealed class EtwTrafficMonitor : IDisposable
                 RemotePort = "",
                 State = webState,
                 BytesIn = webCountBytesIn,
-                BytesOut = webCountBytesOut
+                BytesOut = webCountBytesOut,
+                LastConnectTime = lastConnect,
+                LastCloseTime = lastClose
             });
         }
+
         // 统计连接中间件的流量
-        var groupRemote = list.GroupBy(x => (x.Remote, x.RemoteIp,x.RemotePort)).ToList();
+        var groupRemote = list.GroupBy(x => (x.Remote, x.RemoteIp, x.RemotePort)).ToList();
         foreach (var tcpConnectionInfos in groupRemote)
         {
             if (tcpConnectionInfos.Count() > 1)
             {
                 var (remote, remoteIp, remotePort) = tcpConnectionInfos.Key;
-               // if (IsLocalAddress(remoteIp)) 这里不好判断是不是本地的ip 因为可能部署到其他服务器啊。
+                // if (IsLocalAddress(remoteIp)) 这里不好判断是不是本地的ip 因为可能部署到其他服务器啊。
                 var BytesInSum = tcpConnectionInfos.Sum(x => x.BytesIn);
                 var BytesOutSum = tcpConnectionInfos.Sum(x => x.BytesOut);
-                var state = tcpConnectionInfos.Select(x => x.State.Equals("ESTABLISHED")).Count() > 0 ? "ESTABLISHED" : "CLOSED";
+                var state = tcpConnectionInfos.Select(x => x.State.Equals("ESTABLISHED")).Count() > 0
+                    ? "ESTABLISHED"
+                    : "CLOSED";
+                // 聚合组内取最新的连接开始/关闭时间
+                var groupLastConnect = tcpConnectionInfos.Max(x => x.LastConnectTime);
+                var groupLastClose = tcpConnectionInfos.Max(x => x.LastCloseTime);
                 list = list.Where(x => !x.Remote.Equals(remote)).ToList();
                 list.Add(new TcpConnectionInfo
                 {
@@ -233,7 +260,9 @@ public sealed class EtwTrafficMonitor : IDisposable
                     RemotePort = $"{remotePort}",
                     State = state,
                     BytesIn = BytesInSum,
-                    BytesOut = BytesOutSum
+                    BytesOut = BytesOutSum,
+                    LastConnectTime = groupLastConnect,
+                    LastCloseTime = groupLastClose
                 });
             }
         }
@@ -303,6 +332,7 @@ public sealed class EtwTrafficMonitor : IDisposable
                 data.saddr.ToString(), data.sport,
                 data.daddr.ToString(), data.dport);
             conn.State = "ESTABLISHED";
+            conn.LastConnectTime = DateTime.Now;
         }
         catch
         {
@@ -314,14 +344,61 @@ public sealed class EtwTrafficMonitor : IDisposable
         if (!_running || data.ProcessID != _pid) return;
         try
         {
-            string key = BuildNormalizedKey(
-                data.saddr.ToString(), data.sport,
+            MarkClosed(data.saddr.ToString(), data.sport,
                 data.daddr.ToString(), data.dport);
-            if (_connections.TryGetValue(key, out var conn))
-                conn.State = "CLOSED";
         }
         catch
         {
+        }
+    }
+
+    /// <summary>
+    /// 定时轮询系统 TCP 连接表，检测已消失的连接并记录关闭时间。
+    /// 补充 ETW 未暴露的 TcpIpClose 事件（应用直接关闭 socket / RST / 远端断开等场景）。
+    /// </summary>
+    private void DetectClosedConnections()
+    {
+        if (!_running) return;
+        try
+        {
+            var activeSet = new HashSet<string>();
+            foreach (var conn in IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpConnections())
+            {
+                // 归一化为与 _connections 相同的 key 格式
+                string key = BuildNormalizedKey(
+                    conn.LocalEndPoint.Address.ToString(), conn.LocalEndPoint.Port,
+                    conn.RemoteEndPoint.Address.ToString(), conn.RemoteEndPoint.Port);
+                activeSet.Add(key);
+            }
+
+            var now = DateTime.Now;
+            foreach (var kv in _connections)
+            {
+                var c = kv.Value;
+                if (!c.State.Equals("ESTABLISHED")) continue;
+                if (activeSet.Contains(kv.Key)) continue;
+
+                // 宽限期：避免误判刚创建还未出现在表中的连接
+                if (c.LastConnectTime.HasValue && (now - c.LastConnectTime.Value).TotalSeconds < 6)
+                    continue;
+
+                c.State = "CLOSED";
+                c.LastCloseTime = now;
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    /// <summary>标记连接关闭并记录关闭时间</summary>
+    private void MarkClosed(string addr1, int port1, string addr2, int port2)
+    {
+        string key = BuildNormalizedKey(addr1, port1, addr2, port2);
+        if (_connections.TryGetValue(key, out var conn))
+        {
+            conn.State = "CLOSED";
+            conn.LastCloseTime = DateTime.Now;
         }
     }
 
@@ -355,7 +432,8 @@ public sealed class EtwTrafficMonitor : IDisposable
             LocalPort = localPort,
             RemoteIp = remoteIp,
             RemotePort = remotePort,
-            State = "ESTABLISHED"
+            State = "ESTABLISHED",
+            LastConnectTime = DateTime.Now
         });
     }
 
@@ -426,6 +504,12 @@ public sealed class EtwTrafficMonitor : IDisposable
         internal long _bytesIn;
         internal long _bytesOut;
 
+        /// <summary>最后一次连接建立时间</summary>
+        public DateTime? LastConnectTime;
+
+        /// <summary>最后一次连接关闭时间</summary>
+        public DateTime? LastCloseTime;
+
         public long BytesIn => Interlocked.Read(ref _bytesIn);
         public long BytesOut => Interlocked.Read(ref _bytesOut);
     }
@@ -447,8 +531,17 @@ public class TcpConnectionInfo
     public long BytesIn { get; set; } = -1;
     public long BytesOut { get; set; } = -1;
 
+    /// <summary>最后一次连接建立时间</summary>
+    public DateTime? LastConnectTime { get; set; }
+
+    /// <summary>最后一次连接关闭时间</summary>
+    public DateTime? LastCloseTime { get; set; }
+
     public string BytesInStr => BytesIn >= 0 ? FormatBytes(BytesIn) : "-";
     public string BytesOutStr => BytesOut >= 0 ? FormatBytes(BytesOut) : "-";
+
+    public string LastConnectTimeStr => LastConnectTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-";
+    public string LastCloseTimeStr => LastCloseTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-";
 
     public static string FormatBytes(long bytes)
     {

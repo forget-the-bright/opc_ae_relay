@@ -220,17 +220,19 @@ body {
     font-family: Consolas, monospace;
 }
 
-/* 连接明细表 */
+/* 连接明细表：容器宽度只展示到"发送"列，时间列通过水平滚动查看 */
 .conn-table-wrap {
     margin-top: 16px;
     max-height: 220px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid #f0f0f0;
     border-radius: 4px;
 }
 
 .conn-table {
-    width: 100%;
+    min-width: 100%;
+    width: max-content;
     border-collapse: collapse;
     font-size: 12px;
     font-family: Consolas, monospace;
@@ -247,6 +249,7 @@ body {
     padding: 6px 12px;
     text-align: left;
     border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
 }
 
 .conn-table th {
@@ -285,6 +288,35 @@ body {
     font-size: 11px;
     color: #555;
     white-space: nowrap;
+}
+
+/* 表格高度拖拽手柄 */
+.conn-table-resize-handle {
+    height: 8px;
+    margin-top: 4px;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.conn-table-resize-handle::after {
+    content: '';
+    width: 48px;
+    height: 4px;
+    border-radius: 2px;
+    background: #d9d9d9;
+    transition: background 0.2s;
+}
+
+.conn-table-resize-handle:hover {
+    background: #f0f0f0;
+}
+
+.conn-table-resize-handle:hover::after {
+    background: #1890ff;
 }
 
 /* WebSocket 状态徽章 */

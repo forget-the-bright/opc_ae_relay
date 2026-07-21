@@ -52,7 +52,7 @@
 
     <!-- Web 服务配置 -->
     <Web>
-        <Host>localhost</Host>
+        <Host>+</Host>
         <Port>9000</Port>
     </Web>
 

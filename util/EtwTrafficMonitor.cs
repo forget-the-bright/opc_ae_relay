@@ -13,6 +13,7 @@ using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
 using opc_ae_relay.config;
 using Serilog;
+using Swan;
 
 namespace opc_ae_relay.util;
 
@@ -144,6 +145,11 @@ public sealed class EtwTrafficMonitor : IDisposable
     public List<TcpConnectionInfo> GetConnections()
     {
         var list = new List<TcpConnectionInfo>();
+        var applicationConfig = AppConfigLoader.Config;
+        var applicationConfigWeb = applicationConfig.Web;
+        Dictionary<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp)>
+            webCountBytesDict =
+                new Dictionary<string, (long, long, string, string)>();
         foreach (var kv in _connections)
         {
             var c = kv.Value;
@@ -155,6 +161,21 @@ public sealed class EtwTrafficMonitor : IDisposable
             var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
             if (opcServerConfig != null && c.State.Equals("CLOSED"))
             {
+                continue;
+            }
+
+            if (c.LocalPort == applicationConfigWeb.Port)
+            {
+                var (webCountBytesIn, webCountBytesOut, webState, localIp) = webCountBytesDict
+                    .GetOrAdd(c.RemoteIp, _ => (0, 0, "CLOSE", c.LocalIp));
+                if (!webState.Equals("ESTABLISHED") && c.State.Equals("ESTABLISHED"))
+                {
+                    webState = "ESTABLISHED";
+                }
+
+                webCountBytesIn += c.BytesIn;
+                webCountBytesOut += c.BytesOut;
+                webCountBytesDict[c.RemoteIp] = (webCountBytesIn, webCountBytesOut, webState, localIp);
                 continue;
             }
 
@@ -171,12 +192,57 @@ public sealed class EtwTrafficMonitor : IDisposable
                 BytesOut = c.BytesOut
             });
         }
+        // 统计 Web 服务器的流量
+        foreach (KeyValuePair<string, (long webCountBytesIn, long webCountBytesOut, string webState, string localIp)>
+                     keyValuePair in webCountBytesDict)
+        {
+            var RemoteIp = keyValuePair.Key;
+            var (webCountBytesIn, webCountBytesOut, webState, localIp) = keyValuePair.Value;
+            list.Add(new TcpConnectionInfo
+            {
+                Local = $"{localIp}:{applicationConfigWeb.Port}",
+                LocalIp = $"{localIp}",
+                LocalPort = $"{applicationConfigWeb.Port}",
+                Remote = $"{RemoteIp}",
+                RemoteIp = $"{RemoteIp}",
+                RemotePort = "",
+                State = webState,
+                BytesIn = webCountBytesIn,
+                BytesOut = webCountBytesOut
+            });
+        }
+        // 统计连接中间件的流量
+        var groupRemote = list.GroupBy(x => (x.Remote, x.RemoteIp,x.RemotePort)).ToList();
+        foreach (var tcpConnectionInfos in groupRemote)
+        {
+            if (tcpConnectionInfos.Count() > 2)
+            {
+                var (remote, remoteIp, remotePort) = tcpConnectionInfos.Key;
+               // if (IsLocalAddress(remoteIp)) 这里不好判断是不是本地的ip 因为可能部署到其他服务器啊。
+                var BytesInSum = tcpConnectionInfos.Sum(x => x.BytesIn);
+                var BytesOutSum = tcpConnectionInfos.Sum(x => x.BytesOut);
+                var state = tcpConnectionInfos.Select(x => x.State.Equals("ESTABLISHED")).Count() > 0 ? "ESTABLISHED" : "CLOSED";
+                list = list.Where(x => !x.Remote.Equals(remote)).ToList();
+                list.Add(new TcpConnectionInfo
+                {
+                    Local = $"Local",
+                    LocalIp = $"Local",
+                    LocalPort = $"Local",
+                    Remote = $"{remote}",
+                    RemoteIp = $"{remoteIp}",
+                    RemotePort = $"{remotePort}",
+                    State = state,
+                    BytesIn = BytesInSum,
+                    BytesOut = BytesOutSum
+                });
+            }
+        }
 
         var sortedList = list
-            // 1. 先按远程 IP 分组排序（相同 IP 放一起）
-            .OrderBy(x => x.RemoteIp)
-            // 2. 再按 ESTABLISHED 状态优先
-            .ThenByDescending(x => x.State == "ESTABLISHED")
+            // 1. 先按 ESTABLISHED 状态优先
+            .OrderBy(x => x.State == "ESTABLISHED")
+            // 2. 再按远程 IP 分组排序（相同 IP 放一起）
+            .ThenByDescending(x => x.RemoteIp)
             // 3. 再按接收量降序
             .ThenByDescending(x => x.BytesIn)
             // 4. 最后按发送量降序

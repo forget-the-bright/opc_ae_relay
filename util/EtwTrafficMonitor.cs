@@ -180,7 +180,7 @@ public sealed class EtwTrafficMonitor : IDisposable
             if (c.LocalPort == applicationConfigWeb.Port)
             {
                 var (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose) = webCountBytesDict
-                    .GetOrAdd(c.RemoteIp, _ => (0, 0, "CLOSE", c.LocalIp, (DateTime?)c.LastConnectTime, (DateTime?)c.LastCloseTime));
+                    .GetOrAdd(c.RemoteIp, _ => (0, 0, "CLOSED", c.LocalIp, (DateTime?)c.LastConnectTime, (DateTime?)c.LastCloseTime));
                 if (!webState.Equals("ESTABLISHED") && c.State.Equals("ESTABLISHED"))
                 {
                     webState = "ESTABLISHED";

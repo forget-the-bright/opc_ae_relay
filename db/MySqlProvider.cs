@@ -17,6 +17,7 @@ namespace opc_ae_relay.db
     public class MySqlProvider : IDbProvider
     {
         private readonly string _connectionString;
+        private MySqlConnectionStringBuilder builder;
         private bool _disposed;
 
         public string Name { get; }
@@ -26,6 +27,7 @@ namespace opc_ae_relay.db
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+            builder = new MySqlConnectionStringBuilder(connectionString);
         }
 
         public IDbConnection CreateConnection()
@@ -35,7 +37,7 @@ namespace opc_ae_relay.db
 
         public int GetDatabasePort()
         {
-            var builder = new MySqlConnectionStringBuilder(_connectionString);
+            
             // MySQL 连接字符串自带 Port 属性，默认 3306
             return (int)(builder.Port == 0 ? 3306 : builder.Port);
         }

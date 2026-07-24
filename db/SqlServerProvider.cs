@@ -17,6 +17,8 @@ namespace opc_ae_relay.db
     public class SqlServerProvider : IDbProvider
     {
         private readonly string _connectionString;
+        private SqlConnectionStringBuilder builder;
+        private int port = 0; // 默认端口 1433
         private bool _disposed;
 
         public string Name { get; }
@@ -26,6 +28,7 @@ namespace opc_ae_relay.db
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+            builder = new SqlConnectionStringBuilder(connectionString);
         }
 
         public IDbConnection CreateConnection()
@@ -34,17 +37,20 @@ namespace opc_ae_relay.db
         }
         public int GetDatabasePort()
         {
-            var builder = new SqlConnectionStringBuilder(_connectionString);
+            if (this.port != 0)
+            {
+                return this.port;
+            }
             string dataSource = builder.DataSource;
 
             // 默认端口 1433
-            int port = 1433;
+            this.port = 1433;
             string[] parts = dataSource.Split(',');
             if (parts.Length == 2 && int.TryParse(parts[1], out int p))
             {
-                port = p;
+                this.port = p;
             }
-            return port;
+            return this.port;
         }
         // ====================== 查询操作 ======================
 

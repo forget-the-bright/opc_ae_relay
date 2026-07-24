@@ -16,7 +16,9 @@ namespace opc_ae_relay.db
     /// </summary>
     public static class DbManager
     {
-        private static readonly ConcurrentDictionary<string, IDbProvider> _providers = new ConcurrentDictionary<string, IDbProvider>();
+        private static readonly ConcurrentDictionary<string, IDbProvider> _providers =
+            new ConcurrentDictionary<string, IDbProvider>();
+
         private static string _defaultDbName;
 
         /// <summary>
@@ -87,6 +89,16 @@ namespace opc_ae_relay.db
             return provider;
         }
 
+
+        // 新增：通用获取端口方法
+        public static int GetDatabasePort(string name = null)
+        {
+            using (var provider = GetProvider(name))
+            {
+                return provider.GetDatabasePort();
+            }
+        }
+
         /// <summary>
         /// 获取数据库连接（整合原 DBUtil.GetConnection 功能）
         /// 注意：返回的连接需要调用方自行释放
@@ -120,7 +132,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 查询返回多条记录（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<List<T>> QueryAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<List<T>> QueryAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).QueryAsync<T>(sql, param);
         }
@@ -136,7 +149,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 查询返回单条记录，不存在则抛异常（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<T> QuerySingleAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<T> QuerySingleAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).QuerySingleAsync<T>(sql, param);
         }
@@ -152,7 +166,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 查询返回单条记录，不存在则返回默认值（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<T> QuerySingleOrDefaultAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<T> QuerySingleOrDefaultAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).QuerySingleOrDefaultAsync<T>(sql, param);
         }
@@ -168,7 +183,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 查询返回第一条记录（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<T> QueryFirstAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<T> QueryFirstAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).QueryFirstAsync<T>(sql, param);
         }
@@ -184,7 +200,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 查询返回第一条记录，不存在则返回默认值（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<T> QueryFirstOrDefaultAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<T> QueryFirstOrDefaultAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).QueryFirstOrDefaultAsync<T>(sql, param);
         }
@@ -200,7 +217,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 执行多结果集查询（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<SqlMapper.GridReader> QueryMultipleAsync(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<SqlMapper.GridReader> QueryMultipleAsync(string sql,
+            object param = null, string dbName = null)
         {
             return await GetProvider(dbName).QueryMultipleAsync(sql, param);
         }
@@ -218,7 +236,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 执行增删改操作，返回受影响行数（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<int> ExecuteAsync(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<int> ExecuteAsync(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).ExecuteAsync(sql, param);
         }
@@ -234,7 +253,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 执行查询并返回单个值（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<object> ExecuteScalarAsync(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<object> ExecuteScalarAsync(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).ExecuteScalarAsync(sql, param);
         }
@@ -250,7 +270,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 执行查询并返回单个值（泛型，异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<T> ExecuteScalarAsync<T>(string sql, object param = null, string dbName = null)
+        public static async System.Threading.Tasks.Task<T> ExecuteScalarAsync<T>(string sql, object param = null,
+            string dbName = null)
         {
             return await GetProvider(dbName).ExecuteScalarAsync<T>(sql, param);
         }
@@ -268,7 +289,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 在事务中执行操作（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task TransactionAsync(Func<IDbConnection, IDbTransaction, System.Threading.Tasks.Task> action, string dbName = null)
+        public static async System.Threading.Tasks.Task TransactionAsync(
+            Func<IDbConnection, IDbTransaction, System.Threading.Tasks.Task> action, string dbName = null)
         {
             await GetProvider(dbName).TransactionAsync(action);
         }
@@ -286,7 +308,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 插入实体并返回自增 ID（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<int> InsertGetIdAsync<T>(T entity, string dbName = null) where T : class
+        public static async System.Threading.Tasks.Task<int> InsertGetIdAsync<T>(T entity, string dbName = null)
+            where T : class
         {
             return await GetProvider(dbName).InsertGetIdAsync(entity);
         }
@@ -302,7 +325,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 根据实体更新记录（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<int> UpdateAsync<T>(T entity, object key, string dbName = null) where T : class
+        public static async System.Threading.Tasks.Task<int> UpdateAsync<T>(T entity, object key, string dbName = null)
+            where T : class
         {
             return await GetProvider(dbName).UpdateAsync(entity, key);
         }
@@ -318,7 +342,8 @@ namespace opc_ae_relay.db
         /// <summary>
         /// 根据主键删除记录（异步）
         /// </summary>
-        public static async System.Threading.Tasks.Task<int> DeleteAsync<T>(object key, string dbName = null) where T : class
+        public static async System.Threading.Tasks.Task<int> DeleteAsync<T>(object key, string dbName = null)
+            where T : class
         {
             return await GetProvider(dbName).DeleteAsync<T>(key);
         }

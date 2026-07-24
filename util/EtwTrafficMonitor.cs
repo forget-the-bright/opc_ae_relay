@@ -12,6 +12,7 @@ using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
 using opc_ae_relay.config;
+using opc_ae_relay.db;
 using Serilog;
 using Swan;
 
@@ -214,10 +215,10 @@ public sealed class EtwTrafficMonitor : IDisposable
             var (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose) = keyValuePair.Value;
             list.Add(new TcpConnectionInfo
             {
-                Local = $"{localIp}:{applicationConfigWeb.Port}",
+                Local = $"LocalWeb[{localIp}:{applicationConfigWeb.Port}]",
                 LocalIp = $"{localIp}",
                 LocalPort = $"{applicationConfigWeb.Port}",
-                Remote = $"{RemoteIp}",
+                Remote = $"WEB访问[{RemoteIp}]",
                 RemoteIp = $"{RemoteIp}",
                 RemotePort = "",
                 State = webState,
@@ -262,10 +263,34 @@ public sealed class EtwTrafficMonitor : IDisposable
             }
         }
         
-        // 过滤掉已关闭的OPC服务器连接
+        // 过滤掉已关闭的OPC服务器连接,给连接特性识别并包装名称
         list = list.Where(c =>
         {
+            var dbConfig = AppConfigLoader.GetDatabases().Find(s => DbManager.GetDatabasePort(s.Name).ToString()== c.RemotePort);
+            if (dbConfig != null)
+            {
+                c.Remote = $"{dbConfig.Name}[{c.Remote}]";
+            }
+            
+            var mqConfig = AppConfigLoader.GetMqServers().Find(s => s.Port.ToString() == c.RemotePort);
+            if (mqConfig != null)
+            {
+                c.Remote = $"{mqConfig.Name}[{c.Remote}]";
+                c.Local = "Local";
+            }
             var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
+            if (opcServerConfig != null)
+            {
+                c.Remote = $"{opcServerConfig.Name}[{c.Remote}]";
+                if (c.Local=="Local")
+                {
+                    c.Local = $"OPC心跳[{c.Local}]";
+                }
+                else
+                {
+                    c.Local = $"OPC流量[{c.Local}]";
+                }
+            }
             return !(opcServerConfig != null && c.State.Equals("CLOSED"));
         }).ToList();
         
@@ -274,7 +299,9 @@ public sealed class EtwTrafficMonitor : IDisposable
             .OrderByDescending(x => x.State == "ESTABLISHED")
             // 2. 再按远程 IP 分组排序（相同 IP 放一起）
             .ThenByDescending(x => IsLocalAddress(x.RemoteIp))
-            .ThenByDescending(x =>x.RemoteIp)    
+            .ThenBy(x => AppConfigLoader.GetOPCServers().Find(s => s.IP == x.RemoteIp)?.IP)
+            .ThenByDescending(x => x.RemoteIp)  
+            .ThenByDescending(x => x.Local == "OPC心跳[Local]")
             // 3. 再按接收量降序
             .ThenByDescending(x => x.BytesIn)
             // 4. 最后按发送量降序

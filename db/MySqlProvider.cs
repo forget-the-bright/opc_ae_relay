@@ -33,6 +33,13 @@ namespace opc_ae_relay.db
             return new MySqlConnection(_connectionString);
         }
 
+        public int GetDatabasePort()
+        {
+            var builder = new MySqlConnectionStringBuilder(_connectionString);
+            // MySQL 连接字符串自带 Port 属性，默认 3306
+            return (int)(builder.Port == 0 ? 3306 : builder.Port);
+        }
+
         // ====================== 查询操作 ======================
 
         public List<T> Query<T>(string sql, object param = null, IDbTransaction transaction = null)

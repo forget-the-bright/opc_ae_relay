@@ -26,6 +26,9 @@ namespace opc_ae_relay.db
         /// 创建新的数据库连接（由调用方负责释放）
         /// </summary>
         IDbConnection CreateConnection();
+        
+        // 新增：获取数据库端口
+        int GetDatabasePort();
 
         // ====================== 查询操作 ======================
 

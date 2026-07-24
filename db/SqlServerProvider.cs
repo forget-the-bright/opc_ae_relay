@@ -32,7 +32,20 @@ namespace opc_ae_relay.db
         {
             return new SqlConnection(_connectionString);
         }
+        public int GetDatabasePort()
+        {
+            var builder = new SqlConnectionStringBuilder(_connectionString);
+            string dataSource = builder.DataSource;
 
+            // 默认端口 1433
+            int port = 1433;
+            string[] parts = dataSource.Split(',');
+            if (parts.Length == 2 && int.TryParse(parts[1], out int p))
+            {
+                port = p;
+            }
+            return port;
+        }
         // ====================== 查询操作 ======================
 
         public List<T> Query<T>(string sql, object param = null, IDbTransaction transaction = null)

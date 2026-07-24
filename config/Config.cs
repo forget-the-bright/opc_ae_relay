@@ -73,6 +73,16 @@ namespace opc_ae_relay.config
         {
             return Config.OPCServers;
         }
+        
+        public static List<MQConfig> GetMqServers()
+        {
+            return Config.MQs;
+        }   
+        
+        public static List<DatabaseConfig> GetDatabases()
+        {
+            return Config.Databases;
+        }
     }
 
 

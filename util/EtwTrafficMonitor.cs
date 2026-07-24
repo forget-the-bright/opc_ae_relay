@@ -170,12 +170,7 @@ public sealed class EtwTrafficMonitor : IDisposable
             {
                 continue;
             }
-            // 过滤掉已关闭的OPC服务器连接
-            /*var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
-            if (opcServerConfig != null && c.State.Equals("CLOSED"))
-            {
-                continue;
-            }*/
+
 
             if (c.LocalPort == applicationConfigWeb.Port)
             {
@@ -266,13 +261,20 @@ public sealed class EtwTrafficMonitor : IDisposable
                 });
             }
         }
-
+        
+        // 过滤掉已关闭的OPC服务器连接
+        list = list.Where(c =>
+        {
+            var opcServerConfig = AppConfigLoader.GetOPCServers().Find(s => s.IP == c.RemoteIp);
+            return !(opcServerConfig != null && c.State.Equals("CLOSED"));
+        }).ToList();
+        
         var sortedList = list
             // 1. 先按 ESTABLISHED 状态优先
             .OrderByDescending(x => x.State == "ESTABLISHED")
             // 2. 再按远程 IP 分组排序（相同 IP 放一起）
             .ThenByDescending(x => IsLocalAddress(x.RemoteIp))
-            .ThenBy(x =>x.RemoteIp)    
+            .ThenByDescending(x =>x.RemoteIp)    
             // 3. 再按接收量降序
             .ThenByDescending(x => x.BytesIn)
             // 4. 最后按发送量降序

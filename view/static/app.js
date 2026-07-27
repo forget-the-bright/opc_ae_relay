@@ -27,11 +27,12 @@ function createStreamRenderer(container, btnId, itemClass, maxItems, intervalMs)
 
     function render() {
         if (!dirty) return;     // 没有新消息 → 不碰 DOM，用户阅读完全静止
-        dirty = false;
 
-        const wasAtBottom = atBottom;
-        const savedScrollTop = container.scrollTop;
-        const prevScrollHeight = container.scrollHeight;
+        // 阅读模式（不在底部）：完全跳过 DOM 重建，画面纹丝不动；
+        // 缓冲区照常积累消息，滚回底部后下一个 tick 自动恢复渲染
+        if (!atBottom) return;
+
+        dirty = false;
 
         // 从缓冲区整体重建（唯一一次 DOM 写入）
         let html = '';
@@ -40,14 +41,8 @@ function createStreamRenderer(container, btnId, itemClass, maxItems, intervalMs)
         }
         container.innerHTML = html;
 
-        if (wasAtBottom && Date.now() - lastWheelTime > 200) {
-            // 跟随底部模式（滚轮操作后 200ms 内不抢）
+        if (Date.now() - lastWheelTime > 200) {
             container.scrollTop = container.scrollHeight;
-        } else {
-            // 阅读模式：补偿顶部被裁剪的高度差，画面真正纹丝不动
-            // （缓冲区满后新消息会 splice 掉顶部旧条目，同位置内容会上移）
-            const heightDelta = container.scrollHeight - prevScrollHeight;
-            container.scrollTop = savedScrollTop + heightDelta;
         }
     }
 

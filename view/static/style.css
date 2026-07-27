@@ -109,11 +109,23 @@ body {
 }
 
 /* 日志面板 */
-.log-panel {
+.log-panel,
+.log-panel-alarm {
     background: white;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.log-panel-alarm {
+    margin-top: 24px;
+}
+
+.log-panel-alarm h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: #fa541c;
 }
 
 .log-container {
@@ -143,9 +155,13 @@ body {
     color: #ff4d4f;
 }
 
-/* 回到底部按钮 */
-.log-panel {
-    position: relative;
+/* 告警条目样式 */
+.alarm-item {
+    border-left: 3px solid #fa541c;
+    padding-left: 8px;
+    margin-bottom: 2px;
+    background: #fff7e6;
+    border-radius: 2px;
 }
 
 .scroll-bottom-btn {

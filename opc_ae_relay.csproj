@@ -90,6 +90,7 @@
     <Compile Include="util\CpuUtil.cs" />
     <Compile Include="util\DBUtil.cs" />
     <Compile Include="util\EtwTrafficMonitor.cs" />
+    <Compile Include="web\AlarmWebSocketModule.cs" />
     <Compile Include="web\EmbedIoWebServer.cs" />
     <Compile Include="web\LogWebSocketModule.cs" />
     <Compile Include="web\OpcServerViewModel.cs" />

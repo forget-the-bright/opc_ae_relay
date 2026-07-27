@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using opc_ae_relay.web;
 
 namespace opc_ae_relay.opc;
 
@@ -27,7 +28,9 @@ public class OpcClassicAEClient : IDisposable
     {
         _serverUrl = serverUrl;
         _client = new OpcClient(_serverUrl);
+
         #region ===================== DCOM核心修复配置（专门解决8/15机器OPC AE告警不回调 =====================
+
         // 【参数1：DCOM认证等级 AuthenticationLevel】
         // 对应底层RPC_C_AUTHN_LEVEL，控制远程DCOM调用身份校验/加密强度
         // 可选枚举：None(无校验)/Connect/Call/Packet/PacketIntegrity/PacketPrivacy
@@ -58,9 +61,11 @@ public class OpcClassicAEClient : IDisposable
         // DCOM RPC附加安全标记，MutualAuth/双向认证等开启会增强校验
         // None = 关闭所有额外DCOM安全校验标记，最大程度兼容老OPC服务
         _client.Security.ProxyCapabilities = OpcClassicProxyCapabilities.None;
+
         #endregion
 
         #region ===================== 下方全部为OPC UA(TCP)参数，你的opc.com DCOM场景完全不生效 =====================
+
         // AutoUpgradeEndpointPolicy：UA端点策略自动升级
         // 仅opc.tcp UA连接生效；DCOM桥接OPC Classic无UA端点，不影响，设false关闭自动适配
         _client.Security.AutoUpgradeEndpointPolicy = false;
@@ -82,7 +87,9 @@ public class OpcClassicAEClient : IDisposable
 
         // VerifyServersCertificateDomains：校验UA服务证书域名
         // DCOM OPC无UA证书机制，完全不生效，默认false不用改
+
         #endregion
+
         _host = host;
         _aeNodeId = OpcObjectTypes.Server;
         IsConnected = false;
@@ -298,6 +305,13 @@ public class OpcClassicAEClient : IDisposable
                 ReceiveTime = opcEvent.ReceiveTime,
                 Host = _host
             };
+            var format = string.Format("[TIME-{0}]-[OPC-AE-{1}] - [事件类型:{2}] [来源:{3}] - [消息:{4}]]]",
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                _host,
+                opcEvent.EventType,
+                alarmData.SourceName,
+                alarmData.Message);
+            AlarmLogBroadcaster.Push(format);
             // 在告警事件处理逻辑中，入库和推送 MQ 之前加判断
             if (!TagFilterConfig.IsAllowed(alarmData.SourceName))
             {

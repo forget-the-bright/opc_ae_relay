@@ -11,41 +11,83 @@ document.querySelectorAll('.menu-item').forEach(item => {
     });
 });
 
+// ==================== 流式渲染器（xterm 思路：内存环形缓冲 + 定时整体重绘） ====================
+// 原理：消息只写入 JS 数组（ring buffer），定时器每 tick 从缓冲区一次性重建 innerHTML，
+//       全程零 appendChild/removeChild，每 tick 仅一次 DOM 写入 + 一次 scrollTop 设置，
+//       彻底消除高频追加节点导致的布局抖动。
+function createStreamRenderer(container, btnId, itemClass, maxItems, intervalMs) {
+    const buffer = [];
+    let dirty = false;          // 是否有未渲染的新消息
+    let atBottom = true;        // 用户是否跟随底部
+    let lastWheelTime = 0;      // 最近一次滚轮时间（防止渲染 tick 抢滚动）
+
+    function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function render() {
+        if (!dirty) return;     // 没有新消息 → 不碰 DOM，用户阅读完全静止
+        dirty = false;
+
+        const wasAtBottom = atBottom;
+        const savedScrollTop = container.scrollTop;
+        const prevScrollHeight = container.scrollHeight;
+
+        // 从缓冲区整体重建（唯一一次 DOM 写入）
+        let html = '';
+        for (let i = 0; i < buffer.length; i++) {
+            html += '<div class="' + itemClass + '">' + escapeHtml(buffer[i]) + '</div>';
+        }
+        container.innerHTML = html;
+
+        if (wasAtBottom && Date.now() - lastWheelTime > 200) {
+            // 跟随底部模式（滚轮操作后 200ms 内不抢）
+            container.scrollTop = container.scrollHeight;
+        } else {
+            // 阅读模式：补偿顶部被裁剪的高度差，画面真正纹丝不动
+            // （缓冲区满后新消息会 splice 掉顶部旧条目，同位置内容会上移）
+            const heightDelta = container.scrollHeight - prevScrollHeight;
+            container.scrollTop = savedScrollTop + heightDelta;
+        }
+    }
+
+    container.addEventListener('scroll', () => {
+        const threshold = 30;
+        atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        const btn = document.getElementById(btnId);
+        if (btn) btn.style.display = atBottom ? 'none' : 'block';
+    });
+
+    // 记录滚轮操作时间，渲染 tick 不与其冲突
+    container.addEventListener('wheel', () => { lastWheelTime = Date.now(); }, { passive: true });
+
+    setInterval(render, intervalMs);
+
+    return {
+        push: function (msg) {
+            buffer.push(msg);
+            if (buffer.length > maxItems) buffer.splice(0, buffer.length - maxItems);
+            dirty = true;
+        },
+        scrollToBottom: function () {
+            container.scrollTop = container.scrollHeight;
+            atBottom = true;
+            lastWheelTime = 0;
+            const btn = document.getElementById(btnId);
+            if (btn) btn.style.display = 'none';
+        }
+    };
+}
+
 // ==================== 日志模块（WebSocket 实时推送） ====================
 const logContainer = document.getElementById('log-container');
 const wsStatusEl = document.getElementById('ws-status');
-let userScrolledUp = false;
+const logRenderer = createStreamRenderer(logContainer, 'scroll-bottom-btn', 'log-item', 600, 2000);
 let ws = null;
 let wsReconnectTimer = null;
 
-// 监听滚动事件，判断用户是否在底部
-logContainer.addEventListener('scroll', () => {
-    const threshold = 30;
-    const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < threshold;
-    userScrolledUp = !atBottom;
-    const btn = document.getElementById('scroll-bottom-btn');
-    if (btn) btn.style.display = userScrolledUp ? 'block' : 'none';
-});
-
 function scrollToBottom() {
-    logContainer.scrollTop = logContainer.scrollHeight;
-    userScrolledUp = false;
-    const btn = document.getElementById('scroll-bottom-btn');
-    if (btn) btn.style.display = 'none';
-}
-
-function appendLog(line) {
-    const div = document.createElement('div');
-    div.className = 'log-item';
-    div.textContent = line;
-    logContainer.appendChild(div);
-    // 限制最多 600 条
-    while (logContainer.children.length > 600) {
-        logContainer.removeChild(logContainer.firstChild);
-    }
-    if (!userScrolledUp) {
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
+    logRenderer.scrollToBottom();
 }
 
 function updateWsStatus(connected) {
@@ -76,7 +118,7 @@ function connectLogWs() {
     };
 
     ws.onmessage = (event) => {
-        appendLog(event.data);
+        logRenderer.push(event.data);
     };
 
     ws.onclose = () => {
@@ -107,7 +149,7 @@ function reconnectLogWs(clientId) {
     };
 
     ws.onmessage = (event) => {
-        appendLog(event.data);
+        logRenderer.push(event.data);
     };
 
     ws.onclose = () => {
@@ -123,6 +165,93 @@ function reconnectLogWs(clientId) {
 }
 
 connectLogWs();
+
+// ==================== 告警模块（WebSocket 实时推送） ====================
+const alarmContainer = document.getElementById('log-container-alarm');
+const wsStatusAlarmEl = document.getElementById('ws-status-alarm');
+const alarmRenderer = createStreamRenderer(alarmContainer, 'scroll-bottom-btn-alarm', 'log-item alarm-item', 600, 300);
+let alarmWs = null;
+let alarmWsReconnectTimer = null;
+
+function scrollToBottomAlarm() {
+    alarmRenderer.scrollToBottom();
+}
+
+function updateAlarmWsStatus(connected) {
+    if (!wsStatusAlarmEl) return;
+    if (connected) {
+        wsStatusAlarmEl.textContent = '已连接';
+        wsStatusAlarmEl.className = 'ws-badge ws-connected';
+    } else {
+        wsStatusAlarmEl.textContent = '已断开';
+        wsStatusAlarmEl.className = 'ws-badge ws-disconnected';
+    }
+}
+
+function connectAlarmWs() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const clientId = 'alarm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
+    const wsUrl = `${protocol}//${location.host}/ws/alarms?clientId=${clientId}`;
+
+    alarmWs = new WebSocket(wsUrl);
+
+    alarmWs.onopen = () => {
+        console.log('[WS] 告警连接已建立');
+        updateAlarmWsStatus(true);
+        if (alarmWsReconnectTimer) {
+            clearTimeout(alarmWsReconnectTimer);
+            alarmWsReconnectTimer = null;
+        }
+    };
+
+    alarmWs.onmessage = (event) => {
+        alarmRenderer.push(event.data);
+    };
+
+    alarmWs.onclose = () => {
+        console.log('[WS] 告警连接已断开，3秒后重连...');
+        updateAlarmWsStatus(false);
+        alarmWsReconnectTimer = setTimeout(() => reconnectAlarmWs(clientId), 3000);
+    };
+
+    alarmWs.onerror = (err) => {
+        console.error('[WS] 告警连接错误:', err);
+        alarmWs.close();
+    };
+}
+
+function reconnectAlarmWs(clientId) {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}/ws/alarms?clientId=${clientId}`;
+
+    alarmWs = new WebSocket(wsUrl);
+
+    alarmWs.onopen = () => {
+        console.log('[WS] 告警重连已建立');
+        updateAlarmWsStatus(true);
+        if (alarmWsReconnectTimer) {
+            clearTimeout(alarmWsReconnectTimer);
+            alarmWsReconnectTimer = null;
+        }
+    };
+
+    alarmWs.onmessage = (event) => {
+        alarmRenderer.push(event.data);
+    };
+
+    alarmWs.onclose = () => {
+        console.log('[WS] 告警连接已断开，3秒后重连...');
+        updateAlarmWsStatus(false);
+        alarmWsReconnectTimer = setTimeout(() => reconnectAlarmWs(clientId), 3000);
+    };
+
+    alarmWs.onerror = (err) => {
+        console.error('[WS] 告警连接错误:', err);
+        alarmWs.close();
+    };
+}
+
+connectAlarmWs();
 
 // ==================== 性能监控模块 ====================
 function fetchPerformance() {

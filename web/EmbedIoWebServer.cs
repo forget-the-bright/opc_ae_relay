@@ -25,6 +25,7 @@ namespace opc_ae_relay.web
     {
         private static WebServer _server;
         private static LogWebSocketModule _logWsModule;
+        private static AlarmWebSocketModule _alarmWsModule;
 
         public static void Start()
         {
@@ -35,7 +36,9 @@ namespace opc_ae_relay.web
             var url = webConfig.BaseUrl + "/";
 
             _logWsModule = new LogWebSocketModule("/ws/logs");
+            _alarmWsModule = new AlarmWebSocketModule("/ws/alarms");
             LogBroadcaster.SetSink(msg => _logWsModule.BroadcastMessageAsync(msg));
+            AlarmLogBroadcaster.SetSink(msg => _alarmWsModule.BroadcastMessageAsync(msg));
 
             var staticDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "view", "static");
 
@@ -44,6 +47,7 @@ namespace opc_ae_relay.web
                     .WithMode(HttpListenerMode.EmbedIO))
                 .WithModule(new TrafficTrackingModule())
                 .WithModule(_logWsModule)
+                .WithModule(_alarmWsModule)
                 .WithModule(new ActionModule("/api", HttpVerbs.Get, HandleApi))
                 .WithStaticFolder("/static", staticDir, false)
                 .WithModule(new ActionModule("/", HttpVerbs.Get, HandleHome));

@@ -177,6 +177,7 @@ public sealed class EtwTrafficMonitor : IDisposable
             {
                 var (webCountBytesIn, webCountBytesOut, webState, localIp, lastConnect, lastClose) = webCountBytesDict
                     .GetOrAdd(c.RemoteIp, _ => (0, 0, c.State, c.LocalIp, (DateTime?)c.LastConnectTime, (DateTime?)c.LastCloseTime));
+               
                 if (!webState.Equals("ESTABLISHED") && c.State.Equals("ESTABLISHED"))
                 {
                     webState = "ESTABLISHED";
@@ -330,7 +331,13 @@ public sealed class EtwTrafficMonitor : IDisposable
                 data.saddr.ToString(), data.sport,
                 data.daddr.ToString(), data.dport);
             if (data.size > 0)
+            {
                 Interlocked.Add(ref conn._bytesOut, data.size);
+                conn.LastDataTime = DateTime.Now;
+                // 仍有数据发送，说明连接实际活跃，修正可能被误判的 CLOSED 状态
+                if (!conn.State.Equals("ESTABLISHED"))
+                    conn.State = "ESTABLISHED";
+            }
         }
         catch
         {
@@ -346,7 +353,13 @@ public sealed class EtwTrafficMonitor : IDisposable
                 data.saddr.ToString(), data.sport,
                 data.daddr.ToString(), data.dport);
             if (data.size > 0)
+            {
                 Interlocked.Add(ref conn._bytesIn, data.size);
+                conn.LastDataTime = DateTime.Now;
+                // 仍有数据接收，说明连接实际活跃，修正可能被误判的 CLOSED 状态
+                if (!conn.State.Equals("ESTABLISHED"))
+                    conn.State = "ESTABLISHED";
+            }
         }
         catch
         {
@@ -410,6 +423,11 @@ public sealed class EtwTrafficMonitor : IDisposable
 
                 // 宽限期：避免误判刚创建还未出现在表中的连接
                 if (c.LastConnectTime.HasValue && (now - c.LastConnectTime.Value).TotalSeconds < 6)
+                    continue;
+
+                // 数据活跃保护：近期仍有数据流动的连接不判定为关闭
+                // （可能因地址格式差异导致系统 TCP 表 key 不匹配，但连接实际存活）
+                if ((now - c.LastDataTime).TotalSeconds < 15)
                     continue;
 
                 c.State = "CLOSED";
@@ -539,6 +557,9 @@ public sealed class EtwTrafficMonitor : IDisposable
 
         /// <summary>最后一次连接关闭时间</summary>
         public DateTime? LastCloseTime;
+
+        /// <summary>最后一次观测到数据流动的时间（Send/Recv 事件触发时更新）</summary>
+        public DateTime LastDataTime = DateTime.Now;
 
         public long BytesIn => Interlocked.Read(ref _bytesIn);
         public long BytesOut => Interlocked.Read(ref _bytesOut);
